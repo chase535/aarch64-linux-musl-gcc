@@ -1,6 +1,6 @@
 # aarch64-linux-gnu-with-musl
 
-### aarch64-linux-gnu与musl的结合，更方便的跨平台编译aarch64的C语言程序
+### aarch64-linux-gnu与musl的结合，更方便的跨平台静态编译aarch64的C语言程序
 
 每天自动拉取最新Binutils、GCC、musl源码进行CI构建
 
