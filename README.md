@@ -10,7 +10,7 @@
 
 亦可单独使用其中的aarch64-linux-gnu来作为普通的GCC编译器
 
-为了保证musl编译出来的程序能够在未安装musl的aarch64设备上运行，默认将musl库静态链接
+为了保证musl编译出来的程序能够在未安装musl的aarch64设备上运行，默认静态链接musl库
 
 如需动态链接，请自行fork一份后修改build.yml中第130行，将“--disable-shared”改为“--enable-shared”
 
