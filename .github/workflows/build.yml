@@ -1,0 +1,157 @@
+name: Build
+on:
+  push:
+    paths:
+      - '**.yml'
+  schedule:
+    - cron: '0 16 * * *'
+env:
+  GITHUB_USER: ${{secrets.USERNAME}}
+  GITHUB_EMAIL: ${{secrets.EMAIL}}
+  GITHUB_TOKEN: ${{secrets.API_TOKEN_GITHUB}}
+  SOURCE_DIR: ${{github.workspace}}/source
+  OUTPUT_DIR: ${{github.workspace}}/output
+  BUILD_DIR: ${{github.workspace}}/build
+  WGET_DIR: ${{github.workspace}}/wget
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Set timezone to UTC+8
+      run: |
+        sudo rm -f /etc/localtime && sudo ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+        echo "$(date "+%Y.%m.%d %H:%M:%S UTC%z")" | tee /tmp/start_time
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext txt2man libssl-dev wget
+    - name: Create directory
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-binutils,build-gcc,build-glibc,build-musl}
+    - name: Wget and unzip GMP-6.2.1
+      run: |
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.lz
+        tar -vxf ${WGET_DIR}/gmp-6.2.1.tar.lz -C ${SOURCE_DIR}
+    - name: Make and install GMP-6.2.1
+      run: |
+        cd ${BUILD_DIR}/build-gmp
+        ${SOURCE_DIR}/gmp-6.2.1/configure
+        sudo make all -j$(nproc --all)
+        sudo make install -j$(nproc --all)
+    - name: Wget and unzip MPFR-4.2.0
+      run: |
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.gz
+        tar -vxf ${WGET_DIR}/mpfr-4.2.0.tar.gz -C ${SOURCE_DIR}
+    - name: Make and install MPFR-4.2.0
+      run: |
+        cd ${BUILD_DIR}/build-mpfr
+        ${SOURCE_DIR}/mpfr-4.2.0/configure
+        sudo make all -j$(nproc --all)
+        sudo make install -j$(nproc --all)
+    - name: Wget and unzip MPC-1.3.1
+      run: |
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz
+        tar -vxf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
+    - name: Make and install MPC-1.3.1
+      run: |
+        cd ${BUILD_DIR}/build-mpc
+        ${SOURCE_DIR}/mpc-1.3.1/configure
+        sudo make all -j$(nproc --all)
+        sudo make install -j$(nproc --all)
+    - name: Clone Binutils
+      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
+    - name: Make Binutils
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-binutils
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot CFLAGS="-g0 -O3 -fstack-protector-strong" CXXFLAGS="-g0 -O3 -fstack-protector-strong"
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
+    - name: Wget and unzip Linux-6.1.3 Kernel
+      run: |
+        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.3.tar.xz
+        tar -vxf ${WGET_DIR}/linux-6.1.3.tar.xz -C ${SOURCE_DIR}
+    - name: Make Linux headers
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${SOURCE_DIR}/linux-6.1.3
+        make ARCH=arm64 INSTALL_HDR_PATH="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" headers_install -j$(nproc --all)
+    - name: Clone GCC
+      run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
+    - name: Clone Glibc
+      run: git clone git://sourceware.org/git/glibc.git -b master ${SOURCE_DIR}/glibc --depth=1
+    - name: Fix a bug
+      run: sed -i '77a\#ifndef PATH_MAX\n#define PATH_MAX 4096\n#endif' ${SOURCE_DIR}/gcc/libsanitizer/asan/asan_linux.cpp
+    - name: Make something of GCC
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-gcc
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror CFLAGS="-g0 -O3 -fstack-protector-strong" CXXFLAGS="-g0 -O3 -fstack-protector-strong"
+        make all-gcc -j$(nproc --all)
+        make install-gcc -j$(nproc --all)
+    - name: Make something of Glibc
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-glibc
+        ${SOURCE_DIR}/glibc/configure --prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" --build="${MACHTYPE}" --host="aarch64-linux-gnu" --target="aarch64-linux-gnu" --with-headers="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/include" --disable-multilib --disable-werror CFLAGS="-g0 -O3 -fstack-protector-strong" CXXFLAGS="-g0 -O3 -fstack-protector-strong" libc_cv_forced_unwind=yes with_selinux=no
+        make install-bootstrap-headers=yes install-headers -j$(nproc --all)
+        make csu/subdir_lib -j$(nproc --all)
+        install csu/crt1.o csu/crti.o csu/crtn.o ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/lib
+        aarch64-linux-gnu-gcc -nostdlib -nostartfiles -shared -x c /dev/null -o ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/lib/libc.so
+        touch ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/include/gnu/stubs.h
+    - name: Make more things of GCC
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-gcc
+        make all-target-libgcc -j$(nproc --all)
+        make install-target-libgcc -j$(nproc --all)
+    - name: Make all Glibc
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-glibc
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
+    - name: Make all GCC
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-gcc
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
+    - name: Wget and unzip musl
+      run: |
+        wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-latest.tar.gz
+        tar -vxf ${WGET_DIR}/musl-latest.tar.gz -C ${SOURCE_DIR}
+    - name: Make musl
+      run: |
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
+        cd ${BUILD_DIR}/build-musl
+        ${MUSL_SOURCE}/configure --prefix="${OUTPUT_DIR}/musl" --disable-shared --enable-static CC="${OUTPUT_DIR}/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc" aarch64
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
+    - name: Modify musl files
+      run: |
+        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
+        cp -af ${MUSL_SOURCE}/tools/musl-gcc.specs.sh ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+        sed -i '1a\DIR=${0%/*/*/*}' ${OUTPUT_DIR}/musl/bin/musl-gcc
+        sed -i 's|'"${OUTPUT_DIR}"'|${DIR}|g' ${OUTPUT_DIR}/musl/bin/musl-gcc
+        sed -i 's|^incdir=.*|incdir=${DIR}/musl/include|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+        sed -i 's|^libdir=.*|libdir=${DIR}/musl/lib|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+        sed -i 's|^ldso=.*|ldso=/lib/ld-musl-aarch64.so.1|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+        sed -i 's|^cat.*|cat > ${DIR}/musl/lib/musl-gcc.specs <<EOF|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+        sed -i "2r ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp" ${OUTPUT_DIR}/musl/bin/musl-gcc
+        rm -f ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+    - name: Push
+      run: |
+        git config --global user.name "${GITHUB_USER}"
+        git config --global user.email "${GITHUB_EMAIL}"
+        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-gnu-with-musl /home/runner/work/git_clone -b main --depth=1
+        cd /home/runner/work/git_clone
+        [ -e ./aarch64-linux-gnu ] && git rm -rf ./aarch64-linux-gnu && DELETE_OLD_FILES=true
+        [ -e ./musl ] && git rm -rf ./musl && DELETE_OLD_FILES=true
+        [ -n "${DELETE_OLD_FILES}" ] && git commit -as -m "Delete old files"
+        cp -af ${OUTPUT_DIR}/aarch64-linux-gnu ${OUTPUT_DIR}/musl .
+        git add . -f
+        git commit -as -m "$(cat /tmp/start_time)" -m "$(./aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc --version)"
+        git push origin main -f
