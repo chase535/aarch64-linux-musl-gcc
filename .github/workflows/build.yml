@@ -68,14 +68,14 @@ jobs:
         ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot CFLAGS="-g0 -O3 -fstack-protector-strong" CXXFLAGS="-g0 -O3 -fstack-protector-strong"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
-    - name: Wget and unzip Linux-6.1.3 Kernel
+    - name: Wget and unzip Linux-6.1.6 Kernel
       run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.3.tar.xz
-        tar -vxf ${WGET_DIR}/linux-6.1.3.tar.xz -C ${SOURCE_DIR}
+        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
+        tar -vxf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
     - name: Make Linux headers
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
-        cd ${SOURCE_DIR}/linux-6.1.3
+        cd ${SOURCE_DIR}/linux-6.1.6
         make ARCH=arm64 INSTALL_HDR_PATH="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" headers_install -j$(nproc --all)
     - name: Clone GCC
       run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
