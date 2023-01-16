@@ -2,7 +2,7 @@ name: Build
 on:
   push:
     paths:
-      - '**.yml'
+      - 'build-aarch64-linux-gnu-with-musl.yml'
   schedule:
     - cron: '0 16 * * *'
 env:
