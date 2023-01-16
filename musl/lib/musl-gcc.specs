@@ -1,0 +1,32 @@
+%rename cpp_options old_cpp_options
+
+*cpp_options:
+-nostdinc -isystem /home/runner/work/aarch64-linux-gnu-with-musl/aarch64-linux-gnu-with-musl/output/musl/include -isystem include%s %(old_cpp_options)
+
+*cc1:
+%(cc1_cpu) -nostdinc -isystem /home/runner/work/aarch64-linux-gnu-with-musl/aarch64-linux-gnu-with-musl/output/musl/include -isystem include%s
+
+*link_libgcc:
+-L/home/runner/work/aarch64-linux-gnu-with-musl/aarch64-linux-gnu-with-musl/output/musl/lib -L .%s
+
+*libgcc:
+libgcc.a%s %:if-exists(libgcc_eh.a%s)
+
+*startfile:
+%{!shared: /home/runner/work/aarch64-linux-gnu-with-musl/aarch64-linux-gnu-with-musl/output/musl/lib/Scrt1.o} /home/runner/work/aarch64-linux-gnu-with-musl/aarch64-linux-gnu-with-musl/output/musl/lib/crti.o crtbeginS.o%s
+
+*endfile:
+crtendS.o%s /home/runner/work/aarch64-linux-gnu-with-musl/aarch64-linux-gnu-with-musl/output/musl/lib/crtn.o
+
+*link:
+-dynamic-linker /lib/ld-musl-aarch64.so.1 -nostdlib %{shared:-shared} %{static:-static} %{rdynamic:-export-dynamic}
+
+*esp_link:
+
+
+*esp_options:
+
+
+*esp_cpp_options:
+
+
