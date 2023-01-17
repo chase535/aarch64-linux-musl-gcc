@@ -65,7 +65,7 @@ jobs:
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
-        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O3 -fstack-protector-strong -lbfd" CXXFLAGS="-g0 -O3 -fstack-protector-strong -lbfd"
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O3 -fstack-protector-strong" CXXFLAGS="-g0 -O3 -fstack-protector-strong" LDFLAGS="-static"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Wget and unzip Linux-6.1.6 Kernel
