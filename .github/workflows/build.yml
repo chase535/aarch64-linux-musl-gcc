@@ -65,7 +65,7 @@ jobs:
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
-        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto" LDFLAGS="-static -g0 -O0 -Wl,--gc-sections -flto"
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto -D_GNU_SOURCE" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto -D_GNU_SOURCE" LDFLAGS="-static -g0 -O0 -Wl,--gc-sections -flto"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Wget and unzip Linux-6.1.6 Kernel
@@ -87,14 +87,14 @@ jobs:
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto" LDFLAGS="-static -g0 -O0 -Wl,--gc-sections -flto"
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto -D_GNU_SOURCE" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto -D_GNU_SOURCE" LDFLAGS="-static -g0 -O0 -Wl,--gc-sections -flto"
         make all-gcc -j$(nproc --all)
         make install-gcc -j$(nproc --all)
     - name: Make something of Glibc
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-glibc
-        ${SOURCE_DIR}/glibc/configure --prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" --build="${MACHTYPE}" --host="aarch64-linux-gnu" --target="aarch64-linux-gnu" --with-headers="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/include" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --disable-multilib --disable-werror CFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto" LDFLAGS="-static -g0 -O0 -Wl,--gc-sections -flto" libc_cv_forced_unwind=yes with_selinux=no
+        ${SOURCE_DIR}/glibc/configure --prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" --build="${MACHTYPE}" --host="aarch64-linux-gnu" --target="aarch64-linux-gnu" --with-headers="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/include" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --disable-multilib --disable-werror CFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto -D_GNU_SOURCE" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fdata-sections -ffunction-sections -fno-omit-frame-pointer -flto -D_GNU_SOURCE" LDFLAGS="-static -g0 -O0 -Wl,--gc-sections -flto" libc_cv_forced_unwind=yes with_selinux=no
         make install-bootstrap-headers=yes install-headers -j$(nproc --all)
         make csu/subdir_lib -j$(nproc --all)
         install csu/crt1.o csu/crti.o csu/crtn.o ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/lib
