@@ -60,7 +60,7 @@ jobs:
         sudo make all -j$(nproc --all)
         sudo make install -j$(nproc --all)
     - name: Clone Binutils
-      run: git clone git://sourceware.org/git/binutils-gdb.git -b binutils-2_40-branch ${SOURCE_DIR}/binutils --depth=1
+      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Make Binutils
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
