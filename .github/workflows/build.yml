@@ -65,7 +65,7 @@ jobs:
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
-        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O0 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-static -g0 -O0 -Wl,-g0 -Wl,-O0 -Wl,--hash-style=both -fPIE"
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-lto --enable-plugins --enable-relro --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O0 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O0 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-static -g0 -O0 -Wl,-O0 -Wl,--hash-style=both -fPIE"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Wget and unzip Linux-6.1.6 Kernel
