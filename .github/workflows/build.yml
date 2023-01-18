@@ -28,7 +28,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-binutils,build-gcc,build-glibc,build-musl}
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-binutils,build-gcc,build-glibc,build-musl,build-host-musl}
     - name: Wget and unzip GMP-6.2.1
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.lz
@@ -59,6 +59,15 @@ jobs:
         ${SOURCE_DIR}/mpc-1.3.1/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
         sudo make all -j$(nproc --all)
         sudo make install -j$(nproc --all)
+        
+    - name: Wget and unzip musl
+      run: |
+        wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-latest.tar.gz
+        tar -vxf ${WGET_DIR}/musl-latest.tar.gz -C ${SOURCE_DIR}
+        cd ${BUILD_DIR}/build-host-musl
+        make ARCH=aarch64 prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" DESTDIR="$PWD/sysroot" install-headers -j$(nproc --all)
+        
+        
     - name: Clone Binutils
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Make Binutils
@@ -90,10 +99,7 @@ jobs:
         make install-strip-gcc -j$(nproc --all)
         make enable_shared=no all-target-libgcc -j$(nproc --all)
         make install-strip-target-libgcc -j$(nproc --all)
-    - name: Wget and unzip musl
-      run: |
-        wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-latest.tar.gz
-        tar -vxf ${WGET_DIR}/musl-latest.tar.gz -C ${SOURCE_DIR}
+    
     - name: Make musl
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
