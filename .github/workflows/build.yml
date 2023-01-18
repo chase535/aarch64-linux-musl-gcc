@@ -111,7 +111,7 @@ jobs:
         LIBCC="${LIBCC_DIR}/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${BUILD_DIR}/build-musl
-        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/musl" --enable-static --disable-shared CC="${OUTPUT_DIR}/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc" aarch64
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/musl" --enable-static --disable-shared
         make all AR=aarch64-linux-musl-ar RANLIB=aarch64-linux-musl-ranlib -j$(nproc --all)
         make AR=aarch64-linux-musl-ar RANLIB=aarch64-linux-musl install -j$(nproc --all)
     - name: Make something of GCC
