@@ -64,8 +64,9 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-latest.tar.gz
         tar -vxf ${WGET_DIR}/musl-latest.tar.gz -C ${SOURCE_DIR}
-        cd ${BUILD_DIR}/build-host-musl
-        make ARCH=aarch64 prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" DESTDIR="$PWD/sysroot" install-headers -j$(nproc --all)
+        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
+        cd ${MUSL_SOURCE}
+        make ARCH=aarch64 prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" install-headers -j$(nproc --all)
         
         
     - name: Clone Binutils
