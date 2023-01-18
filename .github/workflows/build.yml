@@ -66,8 +66,8 @@ jobs:
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
         ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-plugins --enable-relro --disable-lto --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-arch=armv8 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
+        make all-binutils all-gas all-ld -j$(nproc --all)
+        make install-strip-binutils install-strip-gas install-strip-ld -j$(nproc --all)
     - name: Wget and unzip Linux-6.1.6 Kernel
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
@@ -79,8 +79,6 @@ jobs:
         make ARCH=arm64 INSTALL_HDR_PATH="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" headers_install -j$(nproc --all)
     - name: Clone GCC
       run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
-    - name: Clone Glibc
-      run: git clone git://sourceware.org/git/glibc.git -b master ${SOURCE_DIR}/glibc --depth=1
     - name: Fix a bug
       run: sed -i '77a\#ifndef PATH_MAX\n#define PATH_MAX 4096\n#endif' ${SOURCE_DIR}/gcc/libsanitizer/asan/asan_linux.cpp
     - name: Make something of GCC
@@ -89,35 +87,9 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
         make all-gcc -j$(nproc --all)
-        make install-gcc -j$(nproc --all)
-    - name: Make something of Glibc
-      run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
-        cd ${BUILD_DIR}/build-glibc
-        ${SOURCE_DIR}/glibc/configure --prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" --build="${MACHTYPE}" --host="aarch64-linux-gnu" --target="aarch64-linux-gnu" --with-headers="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/include" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --disable-multilib --disable-werror CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC" libc_cv_forced_unwind=yes with_selinux=no
-        make install-bootstrap-headers=yes install-headers -j$(nproc --all)
-        make csu/subdir_lib -j$(nproc --all)
-        install csu/crt1.o csu/crti.o csu/crtn.o ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/lib
-        aarch64-linux-gnu-gcc -nostdlib -nostartfiles -shared -x c /dev/null -o ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/lib/libc.so
-        touch ${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu/include/gnu/stubs.h
-    - name: Make more things of GCC
-      run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
-        cd ${BUILD_DIR}/build-gcc
-        make all-target-libgcc -j$(nproc --all)
-        make install-target-libgcc -j$(nproc --all)
-    - name: Make all Glibc
-      run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
-        cd ${BUILD_DIR}/build-glibc
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
-    - name: Make all GCC
-      run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
-        cd ${BUILD_DIR}/build-gcc
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
+        make install-strip-gcc -j$(nproc --all)
+        make enable_shared=no all-target-libgcc -j$(nproc --all)
+        make install-strip-target-libgcc -j$(nproc --all)
     - name: Wget and unzip musl
       run: |
         wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-latest.tar.gz
