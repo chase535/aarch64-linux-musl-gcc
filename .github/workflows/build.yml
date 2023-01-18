@@ -66,8 +66,8 @@ jobs:
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
         ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-plugins --enable-relro --disable-lto --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-arch=armv8 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
-        make all-binutils all-gas all-ld -j$(nproc --all)
-        make install-strip-binutils install-strip-gas install-strip-ld -j$(nproc --all)
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
     - name: Wget and unzip Linux-6.1.6 Kernel
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
