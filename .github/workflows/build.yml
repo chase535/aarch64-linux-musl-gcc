@@ -75,7 +75,7 @@ jobs:
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
-        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-plugins --enable-relro --disable-lto --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-arch=armv8 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-plugins --enable-relro --disable-lto --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-arch=armv8 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Wget and unzip Linux-6.1.6 Kernel
@@ -84,10 +84,6 @@ jobs:
         tar -vxf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
     - name: Make Linux headers
       run: |
-        find ${OUTPUT_DIR} -type f -name "*musl*"
-        echo "111111111111111111111111111111111111111111111111111111111111111111111"
-        find ${SOURCE_DIR} -type f -name "*musl*"
-        echo "222222222222222222222222222222222222222222222222222222222222222222222"
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${SOURCE_DIR}/linux-6.1.6
         make ARCH=arm64 INSTALL_HDR_PATH="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" headers_install -j$(nproc --all)
@@ -99,7 +95,7 @@ jobs:
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-gnu" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
         make all-gcc -j$(nproc --all)
         make install-strip-gcc -j$(nproc --all)
         make enable_shared=no all-target-libgcc -j$(nproc --all)
@@ -111,25 +107,21 @@ jobs:
         ARCH=aarch64
         CC=aarch64-linux-musl-gcc
         CROSS_COMPILE=aarch64-linux-musl-
-        ls -l
-        LIBCC="${OUTPUT_DIR}/aarch64-linux-gnu/lib/gcc/aarch64-linux-musl/$gcc_ver/libgcc.a"
+        LIBCC_DIR=$(find ${OUTPUT_DIR}/aarch64-linux-gnu/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
+        LIBCC="${LIBCC_DIR}/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${BUILD_DIR}/build-musl
-        ${MUSL_SOURCE}/configure --prefix="${OUTPUT_DIR}/musl" --enable-static --disable-shared CC="${OUTPUT_DIR}/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc" aarch64
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
-    - name: Modify musl files
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/musl" --enable-static --disable-shared CC="${OUTPUT_DIR}/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc" aarch64
+        make all AR=aarch64-linux-musl-ar RANLIB=aarch64-linux-musl-ranlib -j$(nproc --all)
+        make AR=aarch64-linux-musl-ar RANLIB=aarch64-linux-musl install -j$(nproc --all)
+    - name: Make something of GCC
       run: |
-        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
-        cp -af ${MUSL_SOURCE}/tools/musl-gcc.specs.sh ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
-        sed -i '1a\DIR=${0%/*/*/*}' ${OUTPUT_DIR}/musl/bin/musl-gcc
-        sed -i 's|'"${OUTPUT_DIR}"'|${DIR}|g' ${OUTPUT_DIR}/musl/bin/musl-gcc
-        sed -i 's|^incdir=.*|incdir=${DIR}/musl/include|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
-        sed -i 's|^libdir=.*|libdir=${DIR}/musl/lib|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
-        sed -i 's|^ldso=.*|ldso=/lib/ld-musl-aarch64.so.1|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
-        sed -i 's|^cat.*|cat > ${DIR}/musl/lib/musl-gcc.specs <<EOF|g' ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
-        sed -i "2r ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp" ${OUTPUT_DIR}/musl/bin/musl-gcc
-        rm -f ${MUSL_SOURCE}/tools/musl-gcc.specs.sh.tmp
+        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        cd ${BUILD_DIR}/build-gcc
+        make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
+        make enable_shared=yes all-target-libgcc -j$(nproc --all)
+        make install-strip-target-libgcc -j$(nproc --all)
+
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
