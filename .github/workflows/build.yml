@@ -66,7 +66,7 @@ jobs:
         tar -vxf ${WGET_DIR}/musl-latest.tar.gz -C ${SOURCE_DIR}
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${MUSL_SOURCE}
-        make ARCH=aarch64 prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" install-headers -j$(nproc --all)
+        make ARCH=aarch64 prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-musl" install-headers -j$(nproc --all)
         
         
     - name: Clone Binutils
