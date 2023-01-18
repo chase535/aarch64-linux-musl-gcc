@@ -82,10 +82,12 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
         tar -vxf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
-        cd ${OUTPUT_DIR}/aarch64-linux-gnu/lib/gcc/aarch64-linux-musl
-        ls -l
     - name: Make Linux headers
       run: |
+        find ${OUTPUT_DIR} -type f -name "*musl*"
+        echo "111111111111111111111111111111111111111111111111111111111111111111111"
+        find ${SOURCE_DIR} -type f -name "*musl*"
+        echo "222222222222222222222222222222222222222222222222222222222222222222222"
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${SOURCE_DIR}/linux-6.1.6
         make ARCH=arm64 INSTALL_HDR_PATH="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" headers_install -j$(nproc --all)
