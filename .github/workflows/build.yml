@@ -82,6 +82,8 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
         tar -vxf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
+        cd ${OUTPUT_DIR}/aarch64-linux-gnu/lib/gcc/aarch64-linux-musl
+        ls -l
     - name: Make Linux headers
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
@@ -104,6 +106,11 @@ jobs:
     - name: Make musl
       run: |
         export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
+        ARCH=aarch64
+        CC=aarch64-linux-musl-gcc
+        CROSS_COMPILE=aarch64-linux-musl-
+        ls -l
+        LIBCC="${OUTPUT_DIR}/aarch64-linux-gnu/lib/gcc/aarch64-linux-musl/$gcc_ver/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${BUILD_DIR}/build-musl
         ${MUSL_SOURCE}/configure --prefix="${OUTPUT_DIR}/musl" --enable-static --disable-shared CC="${OUTPUT_DIR}/aarch64-linux-gnu/bin/aarch64-linux-gnu-gcc" aarch64
