@@ -103,8 +103,8 @@ jobs:
         ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --disable-multilib --disable-werro --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make and install binutils
       run: |
-        $MAKE all-binutils all-gas all-ld -j$(nproc --all)
-        $MAKE install-strip-binutils install-strip-gas install-strip-ld -j$(nproc --all)
+        $MAKE all -j$(nproc --all)
+        $MAKE install -j$(nproc --all)
     - name: Configure gcc
       run: |
         cd ${BUILD_DIR}/build-gcc
