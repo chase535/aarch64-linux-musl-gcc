@@ -133,7 +133,7 @@ jobs:
       run: |
         cd ${BUILD_DIR}/build-musl
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
-        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-sysroot="${MSYSROOT}" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
