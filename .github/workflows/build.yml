@@ -147,16 +147,16 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         $MAKE enable_shared=yes all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
-    - name: Make gcc (libstdc++-v3)
-      run: |
-        cd ${BUILD_DIR}/build-gcc
-        $MAKE all-target-libstdc++-v3 -j$(nproc --all)
-        $MAKE install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make gcc (libgomp)
       run: |
         cd ${BUILD_DIR}/build-gcc
         $MAKE all-target-libgomp -j$(nproc --all)
         $MAKE install-strip-target-libgomp -j$(nproc --all)
+    - name: Make gcc (libstdc++-v3)
+      run: |
+        cd ${BUILD_DIR}/build-gcc
+        $MAKE all-target-libstdc++-v3 -j$(nproc --all)
+        $MAKE install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make linux headers
       run: |
         LINUX_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "linux*")
