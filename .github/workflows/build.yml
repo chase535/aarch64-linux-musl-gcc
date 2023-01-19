@@ -30,7 +30,7 @@ jobs:
       run: |
         cat $GITHUB_ENV
         echo $GITHUB_ENV
-        echo "ARCH=aarch64" >> $GITHUB_ENV
+        echo "asdasdasdqqwweeqq=aarch64" >> $GITHUB_ENV
         sudo rm -f /etc/localtime && sudo ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         echo "$(date "+%Y.%m.%d %H:%M:%S UTC%z")" | tee /tmp/start_time
     - name: Install tools
@@ -39,8 +39,7 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: |
-        cat $GITHUB_ENV
-        echo "${ARCH}"
+        echo "${asdasdasdqqwweeqq}"
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
     - name: Wget and unzip gmp-6.2.1
       run: |
