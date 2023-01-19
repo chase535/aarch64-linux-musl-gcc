@@ -162,12 +162,18 @@ jobs:
       run: |
         cp -avf ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
         cp -avf ${MSYSROOT}/lib ${MPREFIX}/aarch64-linux-musl
+    - name : Find log
+      if: always()
+      run: |
+        mkdir -p ${{github.workspace}}/log
+        logs=$(find ${{github.workspace}} -type f -name "config.log")
+        for i in $logs;do mkdir -p ${{github.workspace}}/log/${i%/*};cp -avf $i ${{github.workspace}}/log/${i%/*};done
     - name : Upload log
       if: always()
       uses: actions/upload-artifact@v3
       with:
         name: log
-        path: ${{github.workspace}}/build/build-gcc/aarch64-linux-musl/libgomp/config.log
+        path: ${{github.workspace}}/log
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
