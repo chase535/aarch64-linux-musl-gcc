@@ -28,7 +28,6 @@ jobs:
       uses: actions/checkout@v3
     - name: Set timezone to UTC+8
       run: |
-        echo "asdasdasdqqwweeqq=aarch64" >> ${GITHUB_ENV}
         sudo rm -f /etc/localtime && sudo ln -s /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
         echo "$(date "+%Y.%m.%d %H:%M:%S UTC%z")" | tee /tmp/start_time
     - name: Install tools
@@ -37,7 +36,6 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: |
-        echo $asdasdasdqqwweeqq
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
     - name: Wget and unzip gmp-6.2.1
       run: |
@@ -126,28 +124,19 @@ jobs:
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Set workflows environment variable
       run: |
-        echo "ARCH=aarch64" >> $GITHUB_ENV
-        echo "CC=aarch64-linux-musl-gcc" >> $GITHUB_ENV
-        echo "CROSS_COMPILE=aarch64-linux-musl-" >> $GITHUB_ENV
-        echo "LIBCC=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a" >> $GITHUB_ENV
+        echo "ARCH=aarch64" >> ${GITHUB_ENV}
+        echo "CC=aarch64-linux-musl-gcc" >> ${GITHUB_ENV}
+        echo "CROSS_COMPILE=aarch64-linux-musl-" >> ${GITHUB_ENV}
+        echo "LIBCC=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a" >> ${GITHUB_ENV}
+        cat ${GITHUB_ENV}
     - name: Configure musl
       run: |
         cd ${BUILD_DIR}/build-musl
-        ARCH=aarch64
-        CC=aarch64-linux-musl-gcc
-        CROSS_COMPILE=aarch64-linux-musl-
-        LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
-        LIBCC="${LIBCC_DIR}/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
-        ARCH=aarch64
-        CC=aarch64-linux-musl-gcc
-        CROSS_COMPILE=aarch64-linux-musl-
-        LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
-        LIBCC="${LIBCC_DIR}/libgcc.a"
         $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
         $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/lib/ld-musl-aarch.so.1
