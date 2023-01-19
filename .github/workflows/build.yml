@@ -167,6 +167,12 @@ jobs:
       run: |
         cp -avf ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
         cp -avf ${MSYSROOT}/lib ${MPREFIX}/aarch64-linux-musl
+    - name : Upload log
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: log
+        path: ${BUILD_DIR}/build-gcc/config.log
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
