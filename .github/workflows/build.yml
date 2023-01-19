@@ -118,21 +118,16 @@ jobs:
         $MAKE install-strip-gcc -j$(nproc --all)
     - name: Make gcc (libgcc-static)
       run: |
-        CFLAGS='-pipe -g0 -O0'
-        CXXFLAGS='-pipe -g0 -O0'
         cd ${BUILD_DIR}/build-gcc
         $MAKE enable_shared=no all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
-    - name: Set workflows environment variable
-      run: |
-        echo "ARCH=aarch64" >> ${GITHUB_ENV}
-        echo "CC=aarch64-linux-musl-gcc" >> ${GITHUB_ENV}
-        echo "CROSS_COMPILE=aarch64-linux-musl-" >> ${GITHUB_ENV}
-        echo "LIBCC=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a" >> ${GITHUB_ENV}
-        cat ${GITHUB_ENV}
     - name: Configure musl
       run: |
         cd ${BUILD_DIR}/build-musl
+        ARCH="aarch64"
+        CC="aarch64-linux-musl-gcc"
+        CROSS_COMPILE="aarch64-linux-musl-"
+        LIBCC="$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
