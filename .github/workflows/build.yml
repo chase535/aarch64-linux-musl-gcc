@@ -13,6 +13,10 @@ env:
   OUTPUT_DIR: ${{github.workspace}}/output
   BUILD_DIR: ${{github.workspace}}/build
   WGET_DIR: ${{github.workspace}}/wget
+  MPREFIX: "${{OUTPUT_DIR}}/toolchain"
+  MSYSROOT: "${{OUTPUT_DIR}}/sysroot"
+  PATH: "$MPREFIX/bin:/usr/bin:/bin"
+  MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -28,74 +32,125 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-binutils,build-gcc,build-glibc,build-musl,build-host-musl}
-    - name: Wget and unzip GMP-6.2.1
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-glibc,build-musl}
+    - name: Wget and unzip gmp-6.2.1
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.lz
         tar -vxf ${WGET_DIR}/gmp-6.2.1.tar.lz -C ${SOURCE_DIR}
-    - name: Make GMP-6.2.1
-      run: |
-        cd ${BUILD_DIR}/build-gmp
-        ${SOURCE_DIR}/gmp-6.2.1/configure --prefix="${OUTPUT_DIR}/gmp"
-        sudo make all -j$(nproc --all)
-        sudo make install -j$(nproc --all)
-    - name: Wget and unzip MPFR-4.2.0
+    - name: Wget and unzip mpfr-4.2.0
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.gz
         tar -vxf ${WGET_DIR}/mpfr-4.2.0.tar.gz -C ${SOURCE_DIR}
-    - name: Make MPFR-4.2.0
-      run: |
-        cd ${BUILD_DIR}/build-mpfr
-        ${SOURCE_DIR}/mpfr-4.2.0/configure --prefix="${OUTPUT_DIR}/mpfr"
-        sudo make all -j$(nproc --all)
-        sudo make install -j$(nproc --all)
-    - name: Wget and unzip MPC-1.3.1
+    - name: Wget and unzip mpc-1.3.1
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz
         tar -vxf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
-    - name: Make MPC-1.3.1
+    - name: Wget and unzip isl-0.25
+      run: |
+        wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-0.25.tar.gz
+        tar -vxf ${WGET_DIR}/isl-0.25.tar.gz -C ${SOURCE_DIR}
+    - name: Wget and unzip linux-6.1.6 kernel
+      run: |
+        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
+        tar -vxf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
+    - name: Clone binutils
+      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
+    - name: Clone gcc
+      run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
+    - name: Make and install gmp-6.2.1
+      run: |
+        cd ${BUILD_DIR}/build-gmp
+        ${SOURCE_DIR}/gmp-6.2.1/configure --prefix="${OUTPUT_DIR}/gmp"
+        $MAKE all -j$(nproc --all)
+        $MAKE install -j$(nproc --all)
+    - name: Make and install mpfr-4.2.0
+      run: |
+        cd ${BUILD_DIR}/build-mpfr
+        ${SOURCE_DIR}/mpfr-4.2.0/configure --prefix="${OUTPUT_DIR}/mpfr"
+        $MAKE all -j$(nproc --all)
+        $MAKE install -j$(nproc --all)
+    - name: Make and install mpc-1.3.1
       run: |
         cd ${BUILD_DIR}/build-mpc
         ${SOURCE_DIR}/mpc-1.3.1/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
-        sudo make all -j$(nproc --all)
-        sudo make install -j$(nproc --all)
-        
+        $MAKE all -j$(nproc --all)
+        $MAKE install -j$(nproc --all)
+    - name: Make and install isl-0.25
+      run: |
+        cd ${BUILD_DIR}/build-isl
+        ${SOURCE_DIR}/isl-0.25/configure --prefix="${OUTPUT_DIR}/isl"
+        $MAKE all -j$(nproc --all)
+        $MAKE install -j$(nproc --all)
     - name: Wget and unzip musl
       run: |
         wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-latest.tar.gz
         tar -vxf ${WGET_DIR}/musl-latest.tar.gz -C ${SOURCE_DIR}
+    - name: Preparing musl headers
+      run: |
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${MUSL_SOURCE}
-        make ARCH=aarch64 prefix="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-musl" install-headers -j$(nproc --all)
-        
-        
-    - name: Clone Binutils
-      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
-    - name: Make Binutils
+        $MAKE ARCH=aarch64 prefix="/usr" DESTDIR="$MSYSROOT" install-headers -j$(nproc --all)
+    - name: Configure binutils
       run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-binutils
-        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-gold --enable-plugins --enable-relro --disable-lto --disable-gdb --disable-nls --disable-multilib --disable-werror --with-sysroot --with-arch=armv8 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
-    - name: Wget and unzip Linux-6.1.6 Kernel
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="$MPREFIX" --with-sysroot="$MSYSROOT" --disable-multilib --disable-werro --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+    - name: Make and install binutils
       run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
-        tar -vxf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
+        $MAKE all-binutils all-gas all-ld -j$(nproc --all)
+        $MAKE install-strip-binutils install-strip-gas install-strip-ld -j$(nproc --all)
+    
+    
+    - name: Configure gcc
+      run: |
+        cd ${BUILD_DIR}/build-gcc
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="$MPREFIX" --with-sysroot="$MSYSROOT" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+    - name: Make and install gcc(compiler)
+      run: |
+        mkdir -p $MSYSROOT/usr/include
+        cd ${BUILD_DIR}/build-gcc
+        $MAKE all-gcc -j$(nproc --all)
+        $MAKE install-strip-gcc -j$(nproc --all)
+    - name: Make and install gcc(libgcc-static)
+      run: |
+        cd ${BUILD_DIR}/build-gcc
+        $MAKE enable_shared=no all-target-libgc -j$(nproc --all)
+        $MAKE install-strip-target-libgcc -j$(nproc --all)
+    - name: Configure musl
+      run: |
+        cd ${BUILD_DIR}/build-musl
+        ARCH=aarch64
+        CC=aarch64-linux-musl-gcc
+        CROSS_COMPILE=aarch64-linux-musl-
+        LIBCC_DIR=$(find $MPREFIX/lib/gcc/$XTARGET -maxdepth 1 -type d -name "[0-9]*")
+        LIBCC="${LIBCC_DIR}/libgcc.a"
+        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr"
+    - name: Make and install musl
+      run: |
+        cd ${BUILD_DIR}/build-musl
+        ARCH=aarch64
+        CC=aarch64-linux-musl-gcc
+        CROSS_COMPILE=aarch64-linux-musl-
+        LIBCC_DIR=$(find $MPREFIX/lib/gcc/$XTARGET -maxdepth 1 -type d -name "[0-9]*")
+        LIBCC="${LIBCC_DIR}/libgcc.a"
+        make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
+        make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="$MSYSROOT" install -j$(nproc --all)
+        rm -f $MSYSROOT/lib/ld-musl-aarch.so.1
+        cp -avf $MSYSROOT/usr/lib/libc.so $MSYSROOT/lib/ld-musl-aarch.so.1
     - name: Make Linux headers
       run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${SOURCE_DIR}/linux-6.1.6
         make ARCH=arm64 INSTALL_HDR_PATH="${OUTPUT_DIR}/aarch64-linux-gnu/aarch64-linux-gnu" headers_install -j$(nproc --all)
-    - name: Clone GCC
-      run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
+
+
+
+
     - name: Fix a bug
       run: sed -i '77a\#ifndef PATH_MAX\n#define PATH_MAX 4096\n#endif' ${SOURCE_DIR}/gcc/libsanitizer/asan/asan_linux.cpp
     - name: Make something of GCC
       run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${OUTPUT_DIR}/aarch64-linux-gnu" --enable-languages=c,c++ --disable-nls --disable-multilib --disable-werror --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -D_GNU_SOURCE" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
         make all-gcc -j$(nproc --all)
         make install-strip-gcc -j$(nproc --all)
         make enable_shared=no all-target-libgcc -j$(nproc --all)
@@ -103,11 +158,10 @@ jobs:
     
     - name: Make musl
       run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         ARCH=aarch64
         CC=aarch64-linux-musl-gcc
         CROSS_COMPILE=aarch64-linux-musl-
-        LIBCC_DIR=$(find ${OUTPUT_DIR}/aarch64-linux-gnu/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
+        LIBCC_DIR=$(find $MPREFIX/lib/gcc/$XTARGET -maxdepth 1 -type d -name "[0-9]*")
         LIBCC="${LIBCC_DIR}/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${BUILD_DIR}/build-musl
@@ -116,7 +170,6 @@ jobs:
         make AR=aarch64-linux-musl-ar RANLIB=aarch64-linux-musl install -j$(nproc --all)
     - name: Make something of GCC
       run: |
-        export PATH=${OUTPUT_DIR}/aarch64-linux-gnu/bin:${PATH}
         cd ${BUILD_DIR}/build-gcc
         make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
         make enable_shared=yes all-target-libgcc -j$(nproc --all)
