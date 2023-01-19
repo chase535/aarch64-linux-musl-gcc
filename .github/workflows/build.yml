@@ -17,9 +17,9 @@ env:
   MSYSROOT: "${{github.workspace}}/output/sysroot"
   PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
-  CFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
-  CXXFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
-  LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC -fcommon"
+  CFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer"
+  CXXFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer"
+  LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -148,6 +148,9 @@ jobs:
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
       run: |
+        aarch64-linux-musl-gcc --version
+        PATH="${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
+        aarch64-linux-musl-gcc --version
         cd ${BUILD_DIR}/build-gcc
         $MAKE all-target-libstdc++-v3 -j$(nproc --all)
         $MAKE install-strip-target-libstdc++-v3 -j$(nproc --all)
