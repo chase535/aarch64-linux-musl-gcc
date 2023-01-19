@@ -17,6 +17,9 @@ env:
   MSYSROOT: "${OUTPUT_DIR}/sysroot"
   PATH: "${MPREFIX}/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
+  CFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
+  CXXFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
+  LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC -fcommon"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -36,27 +39,27 @@ jobs:
     - name: Wget and unzip gmp-6.2.1
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.lz
-        tar -xf ${WGET_DIR}/gmp-6.2.1.tar.lz -C ${SOURCE_DIR}
+        tar -xvf ${WGET_DIR}/gmp-6.2.1.tar.lz -C ${SOURCE_DIR}
     - name: Wget and unzip mpfr-4.2.0
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.gz
-        tar -xf ${WGET_DIR}/mpfr-4.2.0.tar.gz -C ${SOURCE_DIR}
+        tar -xvf ${WGET_DIR}/mpfr-4.2.0.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip mpc-1.3.1
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz
-        tar -xf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
+        tar -xvf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip isl-0.25
       run: |
         wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-0.25.tar.gz
-        tar -xf ${WGET_DIR}/isl-0.25.tar.gz -C ${SOURCE_DIR}
+        tar -xvf ${WGET_DIR}/isl-0.25.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip musl-1.2.3
       run: |
         wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-1.2.3.tar.gz
-        tar -xf ${WGET_DIR}/musl-1.2.3.tar.gz -C ${SOURCE_DIR}
+        tar -xvf ${WGET_DIR}/musl-1.2.3.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip linux-6.1.6
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
-        tar -xf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
+        tar -xvf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
@@ -93,11 +96,11 @@ jobs:
       run: |
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${MUSL_SOURCE}
-        $MAKE ARCH=aarch64 prefix="/usr" DESTDIR="$MSYSROOT" install-headers -j$(nproc --all)
+        $MAKE ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Configure binutils
       run: |
         cd ${BUILD_DIR}/build-binutils
-        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="$MPREFIX" --with-sysroot="$MSYSROOT" --disable-multilib --disable-werro --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+        ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --disable-multilib --disable-werro --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make and install binutils
       run: |
         $MAKE all-binutils all-gas all-ld -j$(nproc --all)
@@ -105,7 +108,7 @@ jobs:
     - name: Configure gcc
       run: |
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="$MPREFIX" --with-sysroot="$MSYSROOT" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl" CFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" CXXFLAGS="-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer" LDFLAGS="-g0 -O2 -Wl,-O2,--hash-style=both -fPIE -fPIC"
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="$MPREFIX" --with-sysroot="$MSYSROOT" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make and install gcc(compiler)
       run: |
         mkdir -p $MSYSROOT/usr/include
