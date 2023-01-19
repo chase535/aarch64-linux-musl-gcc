@@ -109,7 +109,7 @@ jobs:
     - name: Configure gcc
       run: |
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-libgomp --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make gcc (compiler)
       run: |
         mkdir -vp ${MSYSROOT}/usr/include
