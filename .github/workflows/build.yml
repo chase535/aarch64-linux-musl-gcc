@@ -6,16 +6,16 @@ on:
   schedule:
     - cron: '0 16 * * *'
 env:
-  GITHUB_USER: ${{secrets.USERNAME}}
-  GITHUB_EMAIL: ${{secrets.EMAIL}}
-  GITHUB_TOKEN: ${{secrets.API_TOKEN_GITHUB}}
-  SOURCE_DIR: ${{github.workspace}}/source
-  OUTPUT_DIR: ${{github.workspace}}/output
-  BUILD_DIR: ${{github.workspace}}/build
-  WGET_DIR: ${{github.workspace}}/wget
-  MPREFIX: ${{github.workspace}}/output/toolchain
-  MSYSROOT: ${{github.workspace}}/output/sysroot
-  PATH: ${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin
+  GITHUB_USER: "${{secrets.USERNAME}}"
+  GITHUB_EMAIL: "${{secrets.EMAIL}}"
+  GITHUB_TOKEN: "${{secrets.API_TOKEN_GITHUB}}"
+  SOURCE_DIR: "${{github.workspace}}/source"
+  OUTPUT_DIR: "${{github.workspace}}/output"
+  BUILD_DIR: "${{github.workspace}}/build"
+  WGET_DIR: "${{github.workspace}}/wget"
+  MPREFIX: "${{github.workspace}}/output/toolchain"
+  MSYSROOT: "${{github.workspace}}/output/sysroot"
+  PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
   CXXFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
@@ -64,35 +64,35 @@ jobs:
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
       run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
-    - name: Make and install gmp
+    - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
         GMP_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "gmp*")
         ${GMP_SOURCE}/configure --prefix="${OUTPUT_DIR}/gmp"
         $MAKE all -j$(nproc --all)
         $MAKE install -j$(nproc --all)
-    - name: Make and install mpfr
+    - name: Make mpfr
       run: |
         cd ${BUILD_DIR}/build-mpfr
         MPFR_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "mpfr*")
         ${MPFR_SOURCE}/configure --prefix="${OUTPUT_DIR}/mpfr" --with-gmp="${OUTPUT_DIR}/gmp"
         $MAKE all -j$(nproc --all)
         $MAKE install -j$(nproc --all)
-    - name: Make and install mpc
+    - name: Make mpc
       run: |
         cd ${BUILD_DIR}/build-mpc
         MPC_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "mpc*")
         ${MPC_SOURCE}/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
         $MAKE all -j$(nproc --all)
         $MAKE install -j$(nproc --all)
-    - name: Make and install isl
+    - name: Make isl
       run: |
         cd ${BUILD_DIR}/build-isl
         ISL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "isl*")
         ${ISL_SOURCE}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-mpc="${OUTPUT_DIR}/mpc"
         $MAKE all -j$(nproc --all)
         $MAKE install -j$(nproc --all)
-    - name: Prepare musl headers
+    - name: Make musl headers
       run: |
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${MUSL_SOURCE}
@@ -101,7 +101,7 @@ jobs:
       run: |
         cd ${BUILD_DIR}/build-binutils
         ${SOURCE_DIR}/binutils/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --disable-multilib --disable-werro --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
-    - name: Make and install binutils
+    - name: Make binutils
       run: |
         cd ${BUILD_DIR}/build-binutils
         $MAKE all-binutils all-gas all-ld -j$(nproc --all)
@@ -109,17 +109,17 @@ jobs:
     - name: Configure gcc
       run: |
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="$MPREFIX" --with-sysroot="$MSYSROOT" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
-    - name: Make and install gcc(compiler)
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+    - name: Make gcc (compiler)
       run: |
-        mkdir -vp $MSYSROOT/usr/include
+        mkdir -vp ${MSYSROOT}/usr/include
         cd ${BUILD_DIR}/build-gcc
         $MAKE all-gcc -j$(nproc --all)
         $MAKE install-strip-gcc -j$(nproc --all)
-    - name: Make and install gcc(libgcc-static)
+    - name: Make gcc (libgcc-static)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE enable_shared=no all-target-libgc -j$(nproc --all)
+        $MAKE enable_shared=no all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Configure musl
       run: |
@@ -127,51 +127,46 @@ jobs:
         ARCH=aarch64
         CC=aarch64-linux-musl-gcc
         CROSS_COMPILE=aarch64-linux-musl-
-        LIBCC_DIR=$(find $MPREFIX/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
+        LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
         LIBCC="${LIBCC_DIR}/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
-    - name: Make and install musl
+    - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
         ARCH=aarch64
         CC=aarch64-linux-musl-gcc
         CROSS_COMPILE=aarch64-linux-musl-
-        LIBCC_DIR=$(find $MPREFIX/lib/gcc/$XTARGET -maxdepth 1 -type d -name "[0-9]*")
+        LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
         LIBCC="${LIBCC_DIR}/libgcc.a"
         $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
-        $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="$MSYSROOT" install -j$(nproc --all)
-        rm -f $MSYSROOT/lib/ld-musl-aarch.so.1
-        cp -avf $MSYSROOT/usr/lib/libc.so $MSYSROOT/lib/ld-musl-aarch.so.1
-    - name: Make and install gcc(libgcc-shared)
+        $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
+        cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/lib/ld-musl-aarch.so.1
+    - name: Make gcc (libgcc-shared)
       run: |
         cd ${BUILD_DIR}/build-gcc
         $MAKE enable_shared=yes all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
-    - name: Make and install gcc(libstdc++-v3)
+    - name: Make gcc (libstdc++-v3)
       run: |
         cd ${BUILD_DIR}/build-gcc
         $MAKE all-target-libstdc++-v3 -j$(nproc --all)
         $MAKE install-strip-target-libstdc++-v3 -j$(nproc --all)
-    - name: Make and install gcc(libgomp)
+    - name: Make gcc (libgomp)
       run: |
         cd ${BUILD_DIR}/build-gcc
         $MAKE all-target-libgomp -j$(nproc --all)
         $MAKE install-strip-target-libgomp -j$(nproc --all)
-    - name: Prepare linux headers
+    - name: Make linux headers
       run: |
         LINUX_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "linux*")
         cd ${LINUX_SOURCE}
         $MAKE ARCH=arm64 mrproper -j$(nproc --all)
-    - name: make and install linux headers
-      run: |
-        LINUX_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "linux*")
-        cd ${LINUX_SOURCE}
-        $MAKE O=${OUTPUT_DIR}/linux ARCH=arm64 INSTALL_HDR_PATH=$MSYSROOT/usr headers_install -j$(nproc --all)
+        $MAKE O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
     - name: Consolidate files
       run: |
-        cp -af $MSYSROOT/usr/* $MPREFIX/aarch64-linux-musl
-        cp -af $MSYSROOT/lib $MPREFIX/aarch64-linux-musl
+        cp -avf ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
+        cp -avf ${MSYSROOT}/lib ${MPREFIX}/aarch64-linux-musl
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
@@ -180,7 +175,7 @@ jobs:
         cd /home/runner/work/git_clone
         git rm -rf ./*
         git commit -as -m "Delete old files"
-        cp -af $MPREFIX/* .
+        cp -avf ${MPREFIX}/* .
         git add . -f
         git commit -as -m "$(cat /tmp/start_time)" -m "$(./bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
