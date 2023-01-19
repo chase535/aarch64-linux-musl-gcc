@@ -13,9 +13,9 @@ env:
   OUTPUT_DIR: ${{github.workspace}}/output
   BUILD_DIR: ${{github.workspace}}/build
   WGET_DIR: ${{github.workspace}}/wget
-  MPREFIX: ${OUTPUT_DIR}/toolchain
-  MSYSROOT: ${OUTPUT_DIR}/sysroot
-  PATH: ${MPREFIX}/bin:/usr/bin:/bin
+  MPREFIX: ${{github.workspace}}/output/toolchain
+  MSYSROOT: ${{github.workspace}}/output/sysroot
+  PATH: ${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
   CXXFLAGS: "-g0 -O2 -fstack-protector-strong -fno-omit-frame-pointer -fcommon"
