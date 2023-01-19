@@ -167,7 +167,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: log
-        path: ${BUILD_DIR}/build-gcc/aarch64-linux-musl/libgomp/config.log
+        path: ${{github.workspace}}/build/build-gcc/aarch64-linux-musl/libgomp/config.log
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
