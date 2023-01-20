@@ -183,7 +183,7 @@ jobs:
       uses: actions/upload-artifact@v3
       with:
         name: file
-        path: $${{github.workspace}}/output
+        path: ${{github.workspace}}/output
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
