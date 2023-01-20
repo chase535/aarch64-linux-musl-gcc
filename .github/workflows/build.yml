@@ -145,6 +145,10 @@ jobs:
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
       run: |
+        alias ld="$MPREFIX/aarch64-linux-musl/bin/ld"
+        CC="aarch64-linux-musl-gcc"
+        CROSS_COMPILE="aarch64-linux-musl-"
+        LIBCC="$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a"
         find $MPREFIX -name libgcc_s.so
         find $MSYSROOT -name libgcc_s.so
         ld -lgcc_s --verbose
