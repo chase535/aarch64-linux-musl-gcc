@@ -61,9 +61,9 @@ jobs:
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
         tar -xvf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
-      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
+      run: git clone git://sourceware.org/git/binutils-gdb.git -b binutils-2_39-branch ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
-      run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
+      run: git clone git://gcc.gnu.org/git/gcc.git -b releases/gcc-12 ${SOURCE_DIR}/gcc --depth=1
     - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
