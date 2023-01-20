@@ -15,7 +15,7 @@ env:
   WGET_DIR: "${{github.workspace}}/wget"
   MPREFIX: "${{github.workspace}}/output/toolchain"
   MSYSROOT: "${{github.workspace}}/output/sysroot"
-  PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
+  PATH: "${{github.workspace}}/output/toolchain/bin:${{github.workspace}}/output/toolchain/aarch64-linux-musl/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2 -Wl,-Bdynamic"
   CXXFLAGS: "-g0 -O2 -Wl,-Bdynamic"
@@ -145,7 +145,7 @@ jobs:
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
       run: |
-        export PATH="${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
+        export PATH="${{github.workspace}}/output/toolchain/bin:${{github.workspace}}/output/toolchain/aarch64-linux-musl/bin:/usr/bin:/bin"
         cp -af $MPREFIX/aarch64-linux-musl/lib64 ${MSYSROOT}/lib
         CC="aarch64-linux-musl-gcc"
         CROSS_COMPILE="aarch64-linux-musl-"
