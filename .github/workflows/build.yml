@@ -129,7 +129,7 @@ jobs:
         CROSS_COMPILE="aarch64-linux-musl-"
         LIBCC="$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
-        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="${MPREFIX}/musl" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
@@ -168,7 +168,7 @@ jobs:
         git config --global user.name "${GITHUB_USER}"
         git config --global user.email "${GITHUB_EMAIL}"
         mkdir -p /home/runner/work/git_clone
-        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-gnu-with-musl /home/runner/work/git_clone -b main --depth=1
+        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl /home/runner/work/git_clone -b main --depth=1
         cd /home/runner/work/git_clone
         find . -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" \) | xargs git rm -rf
         git commit -as -m "Delete old files"
