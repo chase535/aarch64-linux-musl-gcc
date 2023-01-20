@@ -18,8 +18,8 @@ env:
   PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2 -Wl,-Bdynamic"
-  CXXFLAGS: "-g0 -O2 -Wl,-no-whole-archive,-Bdynamic"
-  LFLAGS: "-Wl,-no-whole-archive,-Bdynamic"
+  CXXFLAGS: "-g0 -O2 -Wl,-Bdynamic"
+  LFLAGS: "-Wl,-Bdynamic"
 jobs:
   build:
     runs-on: ubuntu-latest
