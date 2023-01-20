@@ -109,7 +109,7 @@ jobs:
     - name: Configure gcc
       run: |
         cd ${BUILD_DIR}/build-gcc
-        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages=c,c++ --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make gcc (compiler)
       run: |
         mkdir -vp ${MSYSROOT}/usr/include
@@ -121,16 +121,13 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         $MAKE enable_shared=no all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
-    - name: Set workflows environment variable
-      run: |
-        echo "ARCH=aarch64" >> ${GITHUB_ENV}
-        echo "CC=aarch64-linux-musl-gcc" >> ${GITHUB_ENV}
-        echo "CROSS_COMPILE=aarch64-linux-musl-" >> ${GITHUB_ENV}
-        echo "LIBCC=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a" >> ${GITHUB_ENV}
-        cat ${GITHUB_ENV}
     - name: Configure musl
       run: |
         cd ${BUILD_DIR}/build-musl
+        ARCH="aarch64"
+        CC="aarch64-linux-musl-gcc"
+        CROSS_COMPILE="aarch64-linux-musl-"
+        LIBCC="$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
@@ -149,8 +146,8 @@ jobs:
     - name: Make gcc (libstdc++-v3)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE all -j$(nproc --all)
-        $MAKE install -j$(nproc --all)
+        $MAKE all-target-libstdc++-v3 -j$(nproc --all)
+        $MAKE install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make gcc (libgomp)
       run: |
         cd ${BUILD_DIR}/build-gcc
@@ -166,31 +163,14 @@ jobs:
       run: |
         cp -avf ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
         cp -avf ${MSYSROOT}/lib ${MPREFIX}/aarch64-linux-musl
-    - name : Find log
-      if: always()
-      run: |
-        mkdir -p ${{github.workspace}}/log
-        logs=$(find ${{github.workspace}} -type f -name "config.log")
-        for i in $logs;do mkdir -p ${{github.workspace}}/log/${i%/*};cp -avf $i ${{github.workspace}}/log/${i%/*};done
-    - name : Upload log
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: log
-        path: ${{github.workspace}}/log
-    - name : Upload file
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: file
-        path: ${{github.workspace}}/output
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
         git config --global user.email "${GITHUB_EMAIL}"
+        mkdir -p /home/runner/work/git_clone
         git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-gnu-with-musl /home/runner/work/git_clone -b main --depth=1
         cd /home/runner/work/git_clone
-        git rm -rf ./*
+        find . -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" \) | xargs git rm -rf
         git commit -as -m "Delete old files"
         cp -avf ${MPREFIX}/* .
         git add . -f
