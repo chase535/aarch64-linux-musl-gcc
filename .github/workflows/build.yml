@@ -44,14 +44,14 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.gz
         tar -xvf ${WGET_DIR}/mpfr-4.2.0.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip mpc-1.3.1
-      run: |
-        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz
-        tar -xvf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip isl-0.25
       run: |
         wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-0.25.tar.gz
         tar -xvf ${WGET_DIR}/isl-0.25.tar.gz -C ${SOURCE_DIR}
+    - name: Wget and unzip mpc-1.3.1
+      run: |
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz
+        tar -xvf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip musl-1.2.3
       run: |
         wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-1.2.3.tar.gz
@@ -78,18 +78,18 @@ jobs:
         ${MPFR_SOURCE}/configure --prefix="${OUTPUT_DIR}/mpfr" --with-gmp="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
+    - name: Make isl
+      run: |
+        cd ${BUILD_DIR}/build-isl
+        ISL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "isl*")
+        ${ISL_SOURCE}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
     - name: Make mpc
       run: |
         cd ${BUILD_DIR}/build-mpc
         MPC_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "mpc*")
         ${MPC_SOURCE}/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
-    - name: Make isl
-      run: |
-        cd ${BUILD_DIR}/build-isl
-        ISL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "isl*")
-        ${ISL_SOURCE}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-mpc="${OUTPUT_DIR}/mpc"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make musl headers
@@ -126,7 +126,11 @@ jobs:
         cd ${BUILD_DIR}/build-musl
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
-        ARCH="aarch64" CC="aarch64-linux-musl-gcc" CROSS_COMPILE="aarch64-linux-musl-" LIBCC="${LIBCC_DIR}/libgcc.a" ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        ARCH="aarch64"
+        CC="aarch64-linux-musl-gcc"
+        CROSS_COMPILE="aarch64-linux-musl-"
+        LIBCC="${LIBCC_DIR}/libgcc.a"
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
@@ -158,12 +162,6 @@ jobs:
         cd ${LINUX_SOURCE}
         make ARCH=arm64 mrproper -j$(nproc --all)
         make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
-    - name : Upload file
-      if: always()
-      uses: actions/upload-artifact@v3
-      with:
-        name: file
-        path: ${{github.workspace}}/output
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
@@ -172,8 +170,8 @@ jobs:
         git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl /home/runner/work/git_clone -b main --depth=1
         cd /home/runner/work/git_clone
         ls -l
-        echo `find . -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" \)`
-        OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" \)`
+        echo `find /home/runner/work/git_clone -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" \)`
+        OLD_FILES=`find /home/runner/work/git_clone -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" \)`
         echo ${OLD_FILES}
         [ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${MPREFIX} ${MSYSROOT} .
