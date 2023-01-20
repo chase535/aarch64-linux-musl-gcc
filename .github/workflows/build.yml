@@ -15,7 +15,7 @@ env:
   WGET_DIR: "${{github.workspace}}/wget"
   MPREFIX: "${{github.workspace}}/output/toolchain"
   MSYSROOT: "${{github.workspace}}/output/sysroot"
-  PATH: "${{github.workspace}}/output/toolchain/bin:${{github.workspace}}/output/toolchain/aarch64-linux-musl/bin:/usr/bin:/bin:/usr/local/bin"
+  PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2"
   CXXFLAGS: "-g0 -O2"
@@ -146,14 +146,9 @@ jobs:
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
       run: |
-        export PATH="${{github.workspace}}/output/toolchain/bin:${{github.workspace}}/output/toolchain/aarch64-linux-musl/bin:/usr/bin:/bin"
-        cp -af $MPREFIX/aarch64-linux-musl/lib64 ${MSYSROOT}/lib
         CC="aarch64-linux-musl-gcc"
         CROSS_COMPILE="aarch64-linux-musl-"
         LIBCC="$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a"
-        find $MPREFIX -name libgcc_s.so
-        find $MSYSROOT -name libgcc_s.so
-        ld -lgcc_s --verbose
         cd ${BUILD_DIR}/build-gcc
         $MAKE all -j$(nproc --all)
         $MAKE install -j$(nproc --all)
@@ -184,6 +179,12 @@ jobs:
       with:
         name: log
         path: ${{github.workspace}}/log
+    - name : Upload file
+      if: always()
+      uses: actions/upload-artifact@v3
+      with:
+        name: file
+        path: $${{github.workspace}}/output
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
