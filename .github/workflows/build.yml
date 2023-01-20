@@ -143,7 +143,7 @@ jobs:
     - name: Make gcc (libgcc-shared)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE -C aarch64-linux-musl/libgcc distclean
+        $MAKE -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
         $MAKE enable_shared=yes all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
