@@ -17,8 +17,8 @@ env:
   MSYSROOT: "${{github.workspace}}/output/sysroot"
   PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
-  CFLAGS: "-g0 -O2"
-  CXXFLAGS: "-g0 -O2"
+  CFLAGS: "-g0 -O2 -Wl,-Bdynamic"
+  CXXFLAGS: "-g0 -O2 -Wl,-Bdynamic"
 jobs:
   build:
     runs-on: ubuntu-latest
