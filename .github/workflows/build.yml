@@ -145,6 +145,7 @@ jobs:
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
       run: |
+        export PATH="${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
         cp -af $MPREFIX/aarch64-linux-musl/lib64 ${MSYSROOT}/lib
         CC="aarch64-linux-musl-gcc"
         CROSS_COMPILE="aarch64-linux-musl-"
