@@ -141,7 +141,7 @@ jobs:
         [ -e ${MSYSROOT}/lib ] && rm -rvf ${MSYSROOT}/lib
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/usr/lib/ld-musl-aarch64.so.1
         cd ${MSYSROOT}
-        ln -sf ./usr/lib ./lib
+        ln -svf ./usr/lib ./lib
     - name: Make gcc (libgcc-shared)
       run: |
         cd ${BUILD_DIR}/build-gcc
