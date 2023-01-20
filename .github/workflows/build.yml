@@ -136,7 +136,9 @@ jobs:
         cd ${BUILD_DIR}/build-musl
         make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
         make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
-        [ -e ${MSYSROOT}/lib ] && rm -rf ${MSYSROOT}/lib
+    - name: Link lib directory
+      run: |
+        [ -e ${MSYSROOT}/lib ] && rm -rvf ${MSYSROOT}/lib
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/usr/lib/ld-musl-aarch64.so.1
         cd ${MSYSROOT}
         ln -sf ./usr/lib ./lib
@@ -166,10 +168,10 @@ jobs:
       run: |
         git config --global user.name "${GITHUB_USER}"
         git config --global user.email "${GITHUB_EMAIL}"
-        mkdir -p /home/runner/work/git_clone
+        mkdir -vp /home/runner/work/git_clone
         git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl /home/runner/work/git_clone -b main --depth=1
         cd /home/runner/work/git_clone
-        OLD_FILES=`find /home/runner/work/git_clone -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" -o -type d -name ".git" \)`
+        OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type f -name "README.md" -o -type d -name ".github" -o -type d -name ".git" \)`
         [ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${MPREFIX} ${MSYSROOT} .
         git add . -f
