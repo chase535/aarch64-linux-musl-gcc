@@ -61,9 +61,9 @@ jobs:
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
         tar -xvf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
-      run: git clone git://sourceware.org/git/binutils-gdb.git -b binutils-2_39-branch ${SOURCE_DIR}/binutils --depth=1
+      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
-      run: git clone git://gcc.gnu.org/git/gcc.git -b releases/gcc-12 ${SOURCE_DIR}/gcc --depth=1
+      run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
@@ -95,9 +95,7 @@ jobs:
     - name: Make musl headers
       run: |
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
-        cd ${BUILD_DIR}
-        cp -af ${MUSL_SOURCE}/* ./build-musl
-        cd ./build-musl
+        cd ${MUSL_SOURCE}
         $MAKE ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Configure binutils
       run: |
@@ -133,7 +131,8 @@ jobs:
     - name: Configure musl
       run: |
         cd ${BUILD_DIR}/build-musl
-        ./configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
@@ -144,6 +143,7 @@ jobs:
     - name: Make gcc (libgcc-shared)
       run: |
         cd ${BUILD_DIR}/build-gcc
+        $MAKE -C aarch64-linux-musl/libgcc distclean
         $MAKE enable_shared=yes all-target-libgcc -j$(nproc --all)
         $MAKE install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
