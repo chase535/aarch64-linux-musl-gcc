@@ -129,12 +129,12 @@ jobs:
         CROSS_COMPILE="aarch64-linux-musl-"
         LIBCC="$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")/libgcc.a"
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
-        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="${MPREFIX}/musl" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr" --with-sysroot="${MSYSROOT}" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
         $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
-        $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
+        $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" install -j$(nproc --all)
         [ -e ${MSYSROOT}/lib ] && rm -rf ${MSYSROOT}/lib
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/usr/lib/ld-musl-aarch64.so.1
         cd ${MSYSROOT}
