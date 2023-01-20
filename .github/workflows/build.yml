@@ -16,9 +16,9 @@ env:
   MPREFIX: "${{github.workspace}}/output/toolchain"
   MSYSROOT: "${{github.workspace}}/output/sysroot"
   PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
-  MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2"
   CXXFLAGS: "-g0 -O2"
+  LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -69,34 +69,34 @@ jobs:
         cd ${BUILD_DIR}/build-gmp
         GMP_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "gmp*")
         ${GMP_SOURCE}/configure --prefix="${OUTPUT_DIR}/gmp"
-        $MAKE all -j$(nproc --all)
-        $MAKE install -j$(nproc --all)
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
     - name: Make mpfr
       run: |
         cd ${BUILD_DIR}/build-mpfr
         MPFR_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "mpfr*")
         ${MPFR_SOURCE}/configure --prefix="${OUTPUT_DIR}/mpfr" --with-gmp="${OUTPUT_DIR}/gmp"
-        $MAKE all -j$(nproc --all)
-        $MAKE install -j$(nproc --all)
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
     - name: Make mpc
       run: |
         cd ${BUILD_DIR}/build-mpc
         MPC_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "mpc*")
         ${MPC_SOURCE}/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
-        $MAKE all -j$(nproc --all)
-        $MAKE install -j$(nproc --all)
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
     - name: Make isl
       run: |
         cd ${BUILD_DIR}/build-isl
         ISL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "isl*")
         ${ISL_SOURCE}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-mpc="${OUTPUT_DIR}/mpc"
-        $MAKE all -j$(nproc --all)
-        $MAKE install -j$(nproc --all)
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
     - name: Make musl headers
       run: |
         MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         cd ${MUSL_SOURCE}
-        $MAKE ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
+        make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Configure binutils
       run: |
         cd ${BUILD_DIR}/build-binutils
@@ -104,8 +104,8 @@ jobs:
     - name: Make binutils
       run: |
         cd ${BUILD_DIR}/build-binutils
-        $MAKE all-binutils all-gas all-ld -j$(nproc --all)
-        $MAKE install-strip-binutils install-strip-gas install-strip-ld -j$(nproc --all)
+        make all-binutils all-gas all-ld -j$(nproc --all)
+        make install-strip-binutils install-strip-gas install-strip-ld -j$(nproc --all)
     - name: Configure gcc
       run: |
         cd ${BUILD_DIR}/build-gcc
@@ -114,13 +114,13 @@ jobs:
       run: |
         mkdir -vp ${MSYSROOT}/usr/include
         cd ${BUILD_DIR}/build-gcc
-        $MAKE all-gcc -j$(nproc --all)
-        $MAKE install-strip-gcc -j$(nproc --all)
+        make all-gcc -j$(nproc --all)
+        make install-strip-gcc -j$(nproc --all)
     - name: Make gcc (libgcc-static)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE enable_shared=no all-target-libgcc -j$(nproc --all)
-        $MAKE install-strip-target-libgcc -j$(nproc --all)
+        make enable_shared=no all-target-libgcc -j$(nproc --all)
+        make install-strip-target-libgcc -j$(nproc --all)
     - name: Configure musl
       run: |
         cd ${BUILD_DIR}/build-musl
@@ -130,8 +130,8 @@ jobs:
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
-        $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
-        $MAKE AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
+        make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
+        make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
         [ -e ${MSYSROOT}/lib ] && rm -rf ${MSYSROOT}/lib
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/usr/lib/ld-musl-aarch64.so.1
         cd ${MSYSROOT}
@@ -139,25 +139,25 @@ jobs:
     - name: Make gcc (libgcc-shared)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
-        $MAKE enable_shared=yes all-target-libgcc -j$(nproc --all)
-        $MAKE install-strip-target-libgcc -j$(nproc --all)
+        make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
+        make enable_shared=yes all-target-libgcc -j$(nproc --all)
+        make install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE all-target-libstdc++-v3 -j$(nproc --all)
-        $MAKE install-strip-target-libstdc++-v3 -j$(nproc --all)
+        make all-target-libstdc++-v3 -j$(nproc --all)
+        make install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make gcc (libgomp)
       run: |
         cd ${BUILD_DIR}/build-gcc
-        $MAKE all-target-libgomp -j$(nproc --all)
-        $MAKE install-strip-target-libgomp -j$(nproc --all)
+        make all-target-libgomp -j$(nproc --all)
+        make install-strip-target-libgomp -j$(nproc --all)
     - name: Make linux headers
       run: |
         LINUX_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "linux*")
         cd ${LINUX_SOURCE}
-        $MAKE ARCH=arm64 mrproper -j$(nproc --all)
-        $MAKE O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
+        make ARCH=arm64 mrproper -j$(nproc --all)
+        make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
     - name : Upload file
       if: always()
       uses: actions/upload-artifact@v3
