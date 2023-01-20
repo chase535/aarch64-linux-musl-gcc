@@ -19,7 +19,7 @@ env:
   MAKE: "make INFO_DEPS= infodir= ac_cv_prog_lex_root=lex.yy MAKEINFO=true"
   CFLAGS: "-g0 -O2 -Wl,-Bdynamic"
   CXXFLAGS: "-g0 -O2 -Wl,-Bdynamic"
-  LFLAGS: "-Wl,-Bdynamic"
+  LDFLAGS: "-Wl,-Bdynamic"
 jobs:
   build:
     runs-on: ubuntu-latest
