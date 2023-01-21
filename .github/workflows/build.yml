@@ -130,18 +130,16 @@ jobs:
         CC="aarch64-linux-musl-gcc"
         CROSS_COMPILE="aarch64-linux-musl-"
         LIBCC="${LIBCC_DIR}/libgcc.a"
-        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr"
+        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="${MPREFIX}/aarch64-linux-musl"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
         make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
-        make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
-    - name: Link lib directory
+        make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" install -j$(nproc --all)
+    - name: Copy libc.so to ld-musl-aarch64.so.1
       run: |
-        [ -e ${MSYSROOT}/lib ] && rm -rvf ${MSYSROOT}/lib
-        cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/usr/lib/ld-musl-aarch64.so.1
-        cd ${MSYSROOT}
-        ln -svf ./usr/lib ./lib
+        [ -e ${MPREFIX}/aarch64-linux-musl/lib/ld-musl-aarch64.so.1 ] && rm -rvf ${MPREFIX}/aarch64-linux-musl/lib/ld-musl-aarch64.so.1
+        cp -avf ${MPREFIX}/aarch64-linux-musl/lib/libc.so ${MPREFIX}/aarch64-linux-musl/lib/ld-musl-aarch64.so.1
     - name: Make gcc (libgcc-shared)
       run: |
         cd ${BUILD_DIR}/build-gcc
@@ -163,7 +161,7 @@ jobs:
         LINUX_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "linux*")
         cd ${LINUX_SOURCE}
         make ARCH=arm64 mrproper -j$(nproc --all)
-        make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
+        make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MPREFIX}/aarch64-linux-musl" headers_install -j$(nproc --all)
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
