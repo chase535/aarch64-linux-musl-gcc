@@ -137,7 +137,7 @@ jobs:
         make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
         make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
         [ ! -d ${MSYSROOT}/lib ] && mkdir -vp ${MSYSROOT}/lib
-        [ -e ${MSYSROOT}/lib/ld-musl-aarch64.so.1 ] && rm -vf ${MSYSROOT}/lib/ld-musl-aarch64.so.1
+        rm -vf ${MSYSROOT}/lib/ld-musl-aarch64.so.1
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/lib/ld-musl-aarch64.so.1
     - name: Make gcc (libgcc-shared)
       run: |
