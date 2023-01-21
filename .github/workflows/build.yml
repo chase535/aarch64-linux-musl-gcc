@@ -56,10 +56,10 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-1.2.3.tar.gz
         tar -xvf ${WGET_DIR}/musl-1.2.3.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip linux-6.1.6
+    - name: Wget and unzip linux-6.1.7
       run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.6.tar.xz
-        tar -xvf ${WGET_DIR}/linux-6.1.6.tar.xz -C ${SOURCE_DIR}
+        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.1.7.tar.xz
+        tar -xvf ${WGET_DIR}/linux-6.1.7.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
