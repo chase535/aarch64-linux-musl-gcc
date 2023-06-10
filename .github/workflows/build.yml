@@ -16,7 +16,7 @@ env:
   MPREFIX: "${{github.workspace}}/output/toolchain"
   MSYSROOT: "${{github.workspace}}/output/sysroot"
   PATH: "${{github.workspace}}/output/toolchain/bin:/usr/bin:/bin"
-  CFLAGS: "-g0 -O2 -Doff64_t=__off64_t"
+  CFLAGS: "-g0 -O2"
   CXXFLAGS: "-g0 -O2"
   LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 jobs:
