@@ -1,5 +1,6 @@
 name: Build
 on:
+  workflow_dispatch:
   push:
     paths:
       - '.github/workflows/build.yml'
@@ -144,11 +145,11 @@ jobs:
         make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
         make enable_shared=yes all-target-libgcc -j$(nproc --all)
         make install-strip-target-libgcc -j$(nproc --all)
-    - name: Make gcc (libstdc++-v3)
-      run: |
-        cd ${BUILD_DIR}/build-gcc
-        make all-target-libstdc++-v3 -j$(nproc --all)
-        make install-strip-target-libstdc++-v3 -j$(nproc --all)
+    #- name: Make gcc (libstdc++-v3)
+    #  run: |
+    #    cd ${BUILD_DIR}/build-gcc
+    #    make all-target-libstdc++-v3 -j$(nproc --all)
+    #    make install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make gcc (libgomp)
       run: |
         cd ${BUILD_DIR}/build-gcc
