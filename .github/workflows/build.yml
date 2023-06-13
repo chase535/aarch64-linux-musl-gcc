@@ -65,6 +65,9 @@ jobs:
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
       run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
+    - name: Fix a bug
+      run: |
+        sed -i 's/off64_t/off_t/g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
     - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
@@ -145,11 +148,11 @@ jobs:
         make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
         make enable_shared=yes all-target-libgcc -j$(nproc --all)
         make install-strip-target-libgcc -j$(nproc --all)
-    #- name: Make gcc (libstdc++-v3)
-    #  run: |
-    #    cd ${BUILD_DIR}/build-gcc
-    #    make all-target-libstdc++-v3 -j$(nproc --all)
-    #    make install-strip-target-libstdc++-v3 -j$(nproc --all)
+    - name: Make gcc (libstdc++-v3)
+      run: |
+        cd ${BUILD_DIR}/build-gcc
+        make all-target-libstdc++-v3 -j$(nproc --all)
+        make install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make gcc (libgomp)
       run: |
         cd ${BUILD_DIR}/build-gcc
