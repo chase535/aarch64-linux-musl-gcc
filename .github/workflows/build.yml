@@ -67,7 +67,7 @@ jobs:
       run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Fix a bug
       run: |
-        sed -i 's/ off64_t /_off64_t/g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
+        sed -i 's/ off64_t / _off64_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
     - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
