@@ -232,8 +232,8 @@ jobs:
       run: git clone git://gcc.gnu.org/git/gcc ${SOURCE_DIR}/gcc -b master --depth=1
     - name: Clone musl
       run: git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/musl -b master --depth=1
-    - name: Fix a bug
-      run: sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
+    #- name: Fix a bug
+    #  run: sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
     - name: Configure binutils
       run: |
         cd ${BUILD_DIR}/build-binutils
