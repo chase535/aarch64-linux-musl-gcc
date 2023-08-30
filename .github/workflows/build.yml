@@ -55,10 +55,6 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
         tar -xvf ${WGET_DIR}/mpc-${MPC_VERSION}.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip linux-${{ env.LINUX_VERSION }}
-      run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
-        tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
