@@ -38,7 +38,7 @@ jobs:
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
     - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://gmplib.org/download/gmp/gmp-${GMP_VERSION}.tar.xz
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/gmp-${GMP_VERSION}.tar.xz -C ${SOURCE_DIR}
         mv -f ${SOURCE_DIR}/gmp-${GMP_VERSION} ${SOURCE_DIR}/gmp
     - name: Clone mpfr
