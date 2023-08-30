@@ -28,15 +28,29 @@ env:
   LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 
 jobs:
-  make-headers:
-    name: make-${{ matrix.select }}-headers
+  make-musl-headers:
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        select:
-          - linux
-          - musl
+    steps:
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
+    - name: Create directory
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
+    - name: Clone musl
+      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
+    - name: Make musl headers
+      run: |
+        cd ${SOURCE_DIR}/musl
+        make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
+    - name: Upload musl headers
+      uses: actions/upload-artifact@v3
+      with:
+        name: musl-headers
+        path: ${{ env.MSYSROOT }}/usr/include/*
+
+  make-linux-headers:
+    runs-on: ubuntu-latest
     steps:
     - name: Install tools
       run: |
@@ -45,27 +59,17 @@ jobs:
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone linux
-      if: ${{ matrix.select == 'linux' }}
       run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux -b master ${SOURCE_DIR}/linux --depth=1
     - name: Make linux headers
-      if: ${{ matrix.select == 'linux' }}
       run: |
         cd ${SOURCE_DIR}/linux
         make ARCH=arm64 mrproper -j$(nproc --all)
         make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
-    - name: Clone musl
-      if: ${{ matrix.select == 'musl' }}
-      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
-    - name: Make musl headers
-      if: ${{ matrix.select == 'musl' }}
-      run: |
-        cd ${SOURCE_DIR}/musl
-        make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
-    - name: Upload binutils
+    - name: Upload linux headers
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.select }}-headers
-        path: ${{ env.OUTPUT_DIR }}/*
+        name: linux-headers
+        path: ${{ env.MSYSROOT }}/usr/include/*
 
   build-gmp:
     runs-on: ubuntu-latest
@@ -191,7 +195,7 @@ jobs:
         path: ${{ env.OUTPUT_DIR }}/mpc/*
 
   build-gcc:
-    needs: [ make-headers, build-mpc, build-isl ]
+    needs: [ make-musl-headers, build-mpc, build-isl ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
@@ -220,16 +224,11 @@ jobs:
       with:
         name: isl
         path: ${{ env.OUTPUT_DIR }}/isl
-    - name: Restore linux-headers
-      uses: actions/download-artifact@v3
-      with:
-        name: linux-headers
-        path: ${{ env.OUTPUT_DIR }}
     - name: Restore musl-headers
       uses: actions/download-artifact@v3
       with:
         name: musl-headers
-        path: ${{ env.OUTPUT_DIR }}
+        path: ${{ env.MSYSROOT }}/usr/include
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
@@ -295,6 +294,34 @@ jobs:
         make install-strip-target-libgomp -j$(nproc --all)
     - name: Merge directory
       run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
+    - name: Upload gcc
+      uses: actions/upload-artifact@v3
+      with:
+        name: gcc
+        path: ${{ env.MPREFIX }}/*
+
+
+  push:
+    needs: [ make-linux-headers, build-gcc ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git
+    - name: Create directory
+      run: |
+        mkdir -vp ${MPREFIX}
+    - name: Restore gcc
+      uses: actions/download-artifact@v3
+      with:
+        name: gcc
+        path: ${{ env.MPREFIX }}
+    - name: Restore linux-headers
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-headers
+        path: ${{ env.MPREFIX }}/aarch64-linux-musl/include
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
@@ -306,5 +333,5 @@ jobs:
         #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${MPREFIX}/* .
         git add . -f
-        git commit -as -m "$(./bin/aarch64-linux-musl-gcc --version)"
+        git commit -as -m "$(cat /tmp/start_time)" -m "$(./bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
