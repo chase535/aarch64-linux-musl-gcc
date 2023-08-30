@@ -40,7 +40,7 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
+        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl} ${MSYSROOT}/usr/include
     - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.lz
@@ -63,7 +63,7 @@ jobs:
         tar -xvf ${WGET_DIR}/musl-${MUSL_VERSION}.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip linux-${{ env.LINUX_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${LINUX_VERSION}.tar.xz
+        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
@@ -115,7 +115,6 @@ jobs:
         ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make gcc (compiler)
       run: |
-        mkdir -vp ${MSYSROOT}/usr/include
         cd ${BUILD_DIR}/build-gcc
         make all-gcc -j$(nproc --all)
         make install-strip-gcc -j$(nproc --all)
@@ -127,13 +126,12 @@ jobs:
     - name: Configure musl
       run: |
         cd ${BUILD_DIR}/build-musl
-        MUSL_SOURCE=$(find ${SOURCE_DIR} -maxdepth 1 -type d -name "musl*")
         LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
         ARCH="aarch64"
         CC="aarch64-linux-musl-gcc"
         CROSS_COMPILE="aarch64-linux-musl-"
         LIBCC="${LIBCC_DIR}/libgcc.a"
-        ${MUSL_SOURCE}/configure --host="aarch64-linux-musl" --prefix="/usr"
+        ${SOURCE_DIR}/musl-${MUSL_VERSION}/configure --host="aarch64-linux-musl" --prefix="/usr"
     - name: Make musl
       run: |
         cd ${BUILD_DIR}/build-musl
