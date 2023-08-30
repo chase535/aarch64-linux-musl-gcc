@@ -36,7 +36,7 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget mercurial meld
     - name: Create directory
       run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl} ${MSYSROOT}/usr/include
+        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
     - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://gmplib.org/download/gmp/gmp-${GMP_VERSION}.tar.xz
