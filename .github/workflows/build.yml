@@ -40,8 +40,8 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
-    #- name: Clone gmp
-    #  run: hg clone https://gmplib.org/repo/gmp -b default ${SOURCE_DIR}/gmp
+    - name: Clone gmp
+      run: hg clone https://gmplib.org/repo/gmp/ ${SOURCE_DIR}/gmp
     - name: Clone mpfr
       run: git clone https://gitlab.inria.fr/mpfr/mpfr -b master ${SOURCE_DIR}/mpfr --depth=1
     - name: Clone isl
