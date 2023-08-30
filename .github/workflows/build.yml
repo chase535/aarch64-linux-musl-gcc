@@ -43,8 +43,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone linux
       if: ${{ matrix.select == 'linux' }}
       run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux -b master ${SOURCE_DIR}/linux --depth=1
@@ -76,8 +75,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/build-gmp
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/build-gmp
     - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.xz
@@ -103,8 +101,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-mpfr
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-mpfr
     - name: Restore gmp
       uses: actions/download-artifact@v3
       with:
@@ -135,8 +132,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-isl
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-isl
     - name: Restore gmp
       uses: actions/download-artifact@v3
       with:
@@ -159,7 +155,7 @@ jobs:
         path: ${{ env.OUTPUT_DIR }}/isl/*
 
   build-mpc:
-    needs: [ build-gmp, build-mpfr ]
+    needs: [ make-headers, build-gmp, build-mpfr ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
@@ -167,8 +163,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr} ${WGET_DIR} ${BUILD_DIR}/build-mpc
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr} ${WGET_DIR} ${BUILD_DIR}/build-mpc
     - name: Restore gmp
       uses: actions/download-artifact@v3
       with:
@@ -204,8 +199,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
-      run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
     - name: Restore gmp
       uses: actions/download-artifact@v3
       with:
@@ -226,6 +220,16 @@ jobs:
       with:
         name: isl
         path: ${{ env.OUTPUT_DIR }}/isl
+    - name: Restore linux-headers
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-headers
+        path: ${{ env.OUTPUT_DIR }}
+    - name: Restore musl-headers
+      uses: actions/download-artifact@v3
+      with:
+        name: musl-headers
+        path: ${{ env.OUTPUT_DIR }}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
@@ -289,46 +293,8 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         make all-target-libgomp -j$(nproc --all)
         make install-strip-target-libgomp -j$(nproc --all)
-    - name: Upload gcc
-      uses: actions/upload-artifact@v3
-      with:
-        name: gcc
-        path: |
-          ${{ env.OUTPUT_DIR }}/*
-          !${{ env.OUTPUT_DIR }}/gmp/*
-          !${{ env.OUTPUT_DIR }}/mpfr/*
-          !${{ env.OUTPUT_DIR }}/mpc/*
-          !${{ env.OUTPUT_DIR }}/isl/*
-
-  push:
-    needs: [ make-headers, build-gcc ]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Install tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git
-    - name: Create directory
-      run: |
-        mkdir -vp ${OUTPUT_DIR}
-    - name: Restore gcc
-      uses: actions/download-artifact@v3
-      with:
-        name: gcc
-        path: ${{ env.OUTPUT_DIR }}
-    - name: Restore linux-headers
-      uses: actions/download-artifact@v3
-      with:
-        name: linux-headers
-        path: ${{ env.OUTPUT_DIR }}
-    - name: Restore musl-headers
-      uses: actions/download-artifact@v3
-      with:
-        name: musl-headers
-        path: ${{ env.OUTPUT_DIR }}
     - name: Merge directory
-      run: |
-        cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
+      run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
