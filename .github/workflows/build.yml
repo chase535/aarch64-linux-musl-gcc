@@ -83,7 +83,7 @@ jobs:
         make install -j$(nproc --all)
     - name: Make musl headers
       run: |
-        cd ${SOURCE_DIR}/musl-${MUSL_VERSION}
+        cd ${SOURCE_DIR}/musl
         make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Configure binutils
       run: |
