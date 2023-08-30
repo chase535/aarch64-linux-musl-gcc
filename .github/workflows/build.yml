@@ -201,7 +201,7 @@ jobs:
         path: ${{ env.OUTPUT_DIR }}/mpc/*
 
   build-binutils-and-gcc:
-    needs: [ build-gmp, build-mpfr, build-mpc, build-isl ]
+    needs: [ build-mpc, build-isl ]
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
