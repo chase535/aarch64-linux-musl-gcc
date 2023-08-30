@@ -8,7 +8,6 @@ on:
     - cron: '0 16 * * *'
 env:
   GMP_VERSION: "6.3.0"
-  LINUX_VERSION: "6.5"
   GITHUB_USER: "${{secrets.USERNAME}}"
   GITHUB_EMAIL: "${{secrets.EMAIL}}"
   GITHUB_TOKEN: "${{secrets.API_TOKEN_GITHUB}}"
@@ -41,10 +40,6 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://gmplib.org/download/gmp/gmp-${GMP_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/gmp-${GMP_VERSION}.tar.xz -C ${SOURCE_DIR}
-    - name: Wget and unzip linux-${{ env.LINUX_VERSION }}
-      run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
-        tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Clone mpfr
       run: git clone https://gitlab.inria.fr/mpfr/mpfr -b master ${SOURCE_DIR}/mpfr --depth=1
     - name: Clone isl
@@ -57,6 +52,8 @@ jobs:
       run: git clone git://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Clone musl
       run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
+    - name: Clone linux kernel
+      run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux -b master ${SOURCE_DIR}/linux --depth=1
     - name: Fix a bug
       run: |
         sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
@@ -145,7 +142,7 @@ jobs:
         make install-strip-target-libgomp -j$(nproc --all)
     - name: Make linux headers
       run: |
-        cd ${SOURCE_DIR}/linux-${LINUX_VERSION}
+        cd ${SOURCE_DIR}/linux
         make ARCH=arm64 mrproper -j$(nproc --all)
         make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
     - name: Merge directory
