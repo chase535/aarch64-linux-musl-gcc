@@ -61,11 +61,11 @@ jobs:
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Clone musl
-      run: git clone git://git.musl-libc.org/musl.git -b master ${SOURCE_DIR}/musl --depth=1
+      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Clone binutils
-      run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
+      run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
-      run: git clone git://gcc.gnu.org/git/gcc.git -b master ${SOURCE_DIR}/gcc --depth=1
+      run: git clone git://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Fix a bug
       run: |
         sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
