@@ -254,6 +254,7 @@ jobs:
           !${{ env.OUTPUT_DIR }}/isl/*
 
   build-gcc:
+    needs: [ build-mpc, build-isl ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
