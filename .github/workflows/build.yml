@@ -7,7 +7,6 @@ on:
   schedule:
     - cron: '0 16 * * *'
 env:
-  GMP_VERSION: "6.3.0"
   MPFR_VERSION: "4.2.1"
   MPC_VERSION: "1.3.1"
   LINUX_VERSION: "6.5"
@@ -39,10 +38,6 @@ jobs:
     - name: Create directory
       run: |
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl} ${MSYSROOT}/usr/include
-    - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
-      run: |
-        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.lz
-        tar -xvf ${WGET_DIR}/gmp-${GMP_VERSION}.tar.lz -C ${SOURCE_DIR}
     - name: Wget and unzip mpfr-${{ env.MPFR_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
@@ -55,21 +50,23 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
+    - name: Clone gmp
+      run: git clone https://gmplib.org/repo/gmp -b default ${SOURCE_DIR}/gmp --depth=1
     - name: Clone isl
-      run: git clone git://repo.or.cz/w/isl -b master ${SOURCE_DIR}/isl --depth=1
+      run: git clone https://repo.or.cz/w/isl -b master ${SOURCE_DIR}/isl --depth=1
     - name: Clone binutils
-      run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
+      run: git clone https://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
-      run: git clone git://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
+      run: git clone https://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Clone musl
-      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
+      run: git clone https://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Fix a bug
       run: |
         sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
     - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
-        ${SOURCE_DIR}/gmp-${GMP_VERSION}/configure --prefix="${OUTPUT_DIR}/gmp"
+        ${SOURCE_DIR}/gmp/configure --prefix="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make mpfr
