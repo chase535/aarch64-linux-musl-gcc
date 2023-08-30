@@ -35,7 +35,7 @@ jobs:
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone musl
-      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
+      run: git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/musl -b master --depth=1
     - name: Make musl headers
       run: |
         cd ${SOURCE_DIR}/musl
@@ -56,7 +56,7 @@ jobs:
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone linux
-      run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux -b master ${SOURCE_DIR}/linux --depth=1
+      run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/linux -b master --depth=1
     - name: Make linux headers
       run: |
         cd ${SOURCE_DIR}/linux
@@ -227,11 +227,11 @@ jobs:
         name: musl-headers
         path: ${{ env.MSYSROOT }}/usr/include
     - name: Clone binutils
-      run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
+      run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
-      run: git clone git://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
+      run: git clone git://gcc.gnu.org/git/gcc ${SOURCE_DIR}/gcc -b master --depth=1
     - name: Clone musl
-      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
+      run: git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/musl -b master --depth=1
     - name: Fix a bug
       run: sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
     - name: Configure binutils
