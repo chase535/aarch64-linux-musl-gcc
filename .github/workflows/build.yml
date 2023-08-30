@@ -289,10 +289,10 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         make all-target-libgomp -j$(nproc --all)
         make install-strip-target-libgomp -j$(nproc --all)
-    - name: Upload ${{ matrix.build-select }}
+    - name: Upload gcc
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.build-select }}
+        name: gcc
         path: |
           ${{ env.OUTPUT_DIR }}/*
           !${{ env.OUTPUT_DIR }}/gmp/*
@@ -311,6 +311,11 @@ jobs:
     - name: Create directory
       run: |
         mkdir -vp ${OUTPUT_DIR}
+    - name: Restore gcc
+      uses: actions/download-artifact@v3
+      with:
+        name: gcc
+        path: ${{ env.OUTPUT_DIR }}
     - name: Restore linux-headers
       uses: actions/download-artifact@v3
       with:
@@ -320,16 +325,6 @@ jobs:
       uses: actions/download-artifact@v3
       with:
         name: musl-headers
-        path: ${{ env.OUTPUT_DIR }}
-    - name: Restore binutils
-      uses: actions/download-artifact@v3
-      with:
-        name: binutils
-        path: ${{ env.OUTPUT_DIR }}
-    - name: Restore gcc
-      uses: actions/download-artifact@v3
-      with:
-        name: gcc
         path: ${{ env.OUTPUT_DIR }}
     - name: Merge directory
       run: |
