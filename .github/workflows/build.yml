@@ -116,7 +116,7 @@ jobs:
         name: gmp
         path: ${{ env.HOME }}
     - name: Unzip file
-      run: tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
+      run: tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
     - name: Wget and unzip mpfr-${{ env.MPFR_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
@@ -151,7 +151,7 @@ jobs:
         name: gmp
         path: ${{ env.HOME }}
     - name: Unzip file
-      run: tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
+      run: tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
     - name: Wget and unzip isl-${{ env.ISL_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
@@ -192,8 +192,8 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
-        tar-xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}/mpfr
+        tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
+        tar -xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}/mpfr
     - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
@@ -249,11 +249,11 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
-        tar-xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}/mpfr
-        tar-xzvf ${HOME}/mpc.tar.gz -C ${OUTPUT_DIR}/mpc
-        tar-xzvf ${HOME}/isl.tar.gz -C ${OUTPUT_DIR}/isl
-        tar-xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr/include
+        tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
+        tar -xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}/mpfr
+        tar -xzvf ${HOME}/mpc.tar.gz -C ${OUTPUT_DIR}/mpc
+        tar -xzvf ${HOME}/isl.tar.gz -C ${OUTPUT_DIR}/isl
+        tar -xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr/include
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
@@ -353,8 +353,8 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar-xzvf ${HOME}/gcc.tar.gz -C ${MPREFIX}
-        tar-xzvf ${HOME}/linux-headers.tar.gz -C ${MPREFIX}/usr/include
+        tar -xzvf ${HOME}/gcc.tar.gz -C ${MPREFIX}
+        tar -xzvf ${HOME}/linux-headers.tar.gz -C ${MPREFIX}/usr/include
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
