@@ -29,7 +29,7 @@ env:
 
 jobs:
   make-headers:
-    name: make ${{ matrix.select }} headers
+    name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
