@@ -7,6 +7,12 @@ on:
   schedule:
     - cron: '0 16 * * *'
 env:
+  GMP_VERSION: "6.3.0"
+  MPFR_VERSION: "4.2.0"
+  ISL_VERSION: "0.26"
+  MPC_VERSION: "1.3.1"
+  MUSL_VERSION: "1.2.4"
+  LINUX_VERSION: "6.4.2"
   GITHUB_USER: "${{secrets.USERNAME}}"
   GITHUB_EMAIL: "${{secrets.EMAIL}}"
   GITHUB_TOKEN: "${{secrets.API_TOKEN_GITHUB}}"
@@ -35,30 +41,30 @@ jobs:
     - name: Create directory
       run: |
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
-    - name: Wget and unzip gmp-6.2.1
+    - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-6.2.1.tar.lz
-        tar -xvf ${WGET_DIR}/gmp-6.2.1.tar.lz -C ${SOURCE_DIR}
-    - name: Wget and unzip mpfr-4.2.0
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.lz
+        tar -xvf ${WGET_DIR}/gmp-${GMP_VERSION}.tar.lz -C ${SOURCE_DIR}
+    - name: Wget and unzip mpfr-${{ env.MPFR_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-4.2.0.tar.gz
-        tar -xvf ${WGET_DIR}/mpfr-4.2.0.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip isl-0.26
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
+        tar -xvf ${WGET_DIR}/mpfr-${MPFR_VERSION}.tar.gz -C ${SOURCE_DIR}
+    - name: Wget and unzip isl-${{ env.ISL_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-0.26.tar.gz
-        tar -xvf ${WGET_DIR}/isl-0.26.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip mpc-1.3.1
+        wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
+        tar -xvf ${WGET_DIR}/isl-${ISL_VERSION}.tar.gz -C ${SOURCE_DIR}
+    - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-1.3.1.tar.gz
-        tar -xvf ${WGET_DIR}/mpc-1.3.1.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip musl-1.2.4
+        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
+        tar -xvf ${WGET_DIR}/mpc-${MPC_VERSION}.tar.gz -C ${SOURCE_DIR}
+    - name: Wget and unzip musl-${{ env.MUSL_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-1.2.4.tar.gz
-        tar -xvf ${WGET_DIR}/musl-1.2.4.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip linux-6.4.2
+        wget -P ${WGET_DIR} https://musl.libc.org/releases/musl-${MUSL_VERSION}.tar.gz
+        tar -xvf ${WGET_DIR}/musl-${MUSL_VERSION}.tar.gz -C ${SOURCE_DIR}
+    - name: Wget and unzip linux-${{ env.LINUX_VERSION }}
       run: |
-        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-6.4.2.tar.xz
-        tar -xvf ${WGET_DIR}/linux-6.4.2.tar.xz -C ${SOURCE_DIR}
+        wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v6.x/linux-${LINUX_VERSION}.tar.xz
+        tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
