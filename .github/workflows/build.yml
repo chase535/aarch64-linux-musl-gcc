@@ -364,8 +364,37 @@ jobs:
           !${{ env.OUTPUT_DIR }}/mpc/*
           !${{ env.OUTPUT_DIR }}/isl/*
 
-
-
+  push:
+    needs: [ make-linux-headers, make-musl-headers, build-binutils, build-gcc ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y axel
+    - name: Create directory
+      run: |
+        mkdir -vp ${OUTPUT_DIR}/{linux-headers,musl-headers,binutils,gcc}
+    - name: Restore linux-headers
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-headers
+        path: ${{ env.OUTPUT_DIR }}/linux-headers
+    - name: Restore musl-headers
+      uses: actions/download-artifact@v3
+      with:
+        name: musl-headers
+        path: ${{ env.OUTPUT_DIR }}/musl-headers
+    - name: Restore binutils
+      uses: actions/download-artifact@v3
+      with:
+        name: binutils
+        path: ${{ env.OUTPUT_DIR }}/binutils
+    - name: Restore gcc
+      uses: actions/download-artifact@v3
+      with:
+        name: gcc-*
+        path: ${{ env.OUTPUT_DIR }}/gcc
 
 
 #    - name: Merge directory
