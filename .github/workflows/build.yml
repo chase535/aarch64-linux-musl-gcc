@@ -301,7 +301,7 @@ jobs:
         path: ${{ env.MPREFIX }}/*
 
 
-  push:
+  merge-and-push:
     needs: [ make-linux-headers, build-gcc ]
     runs-on: ubuntu-latest
     steps:
