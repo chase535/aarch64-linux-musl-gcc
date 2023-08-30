@@ -7,7 +7,6 @@ on:
   schedule:
     - cron: '0 16 * * *'
 env:
-  MPC_VERSION: "1.3.1"
   LINUX_VERSION: "6.5"
   GITHUB_USER: "${{secrets.USERNAME}}"
   GITHUB_EMAIL: "${{secrets.EMAIL}}"
@@ -37,10 +36,6 @@ jobs:
     - name: Create directory
       run: |
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl} ${MSYSROOT}/usr/include
-    - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
-      run: |
-        wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
-        tar -xvf ${WGET_DIR}/mpc-${MPC_VERSION}.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip linux-${{ env.LINUX_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
@@ -51,6 +46,8 @@ jobs:
       run: git clone https://gitlab.inria.fr/mpfr/mpfr.git -b master ${SOURCE_DIR}/mpfr --depth=1
     - name: Clone isl
       run: git clone git://repo.or.cz/isl.git -b master ${SOURCE_DIR}/isl --depth=1
+    - name: Clone mpc
+      run: git clone https://gitlab.inria.fr/mpc/mpc.git -b master ${SOURCE_DIR}/mpc --depth=1
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb.git -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
@@ -81,7 +78,7 @@ jobs:
     - name: Make mpc
       run: |
         cd ${BUILD_DIR}/build-mpc
-        ${SOURCE_DIR}/mpc-${MPC_VERSION}/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
+        ${SOURCE_DIR}/mpc/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make musl headers
