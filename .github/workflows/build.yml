@@ -34,7 +34,7 @@ jobs:
     - name: Install tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
+        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget mercurial meld
     - name: Create directory
       run: |
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT} ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl} ${MSYSROOT}/usr/include
@@ -51,7 +51,7 @@ jobs:
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Clone gmp
-      run: git clone https://gmplib.org/repo/gmp -b default ${SOURCE_DIR}/gmp --depth=1
+      run: hg clone https://gmplib.org/repo/gmp -b default ${SOURCE_DIR}/gmp
     - name: Clone isl
       run: git clone https://repo.or.cz/w/isl -b master ${SOURCE_DIR}/isl --depth=1
     - name: Clone binutils
