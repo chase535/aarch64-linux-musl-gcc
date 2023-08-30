@@ -66,18 +66,24 @@ jobs:
         make install -j$(nproc --all)
     - name: Make mpfr
       run: |
+        cd ${SOURCE_DIR}/mpfr
+        aclocal && autoconf && autoheader && automake --add-missing
         cd ${BUILD_DIR}/build-mpfr
         ${SOURCE_DIR}/mpfr/configure --prefix="${OUTPUT_DIR}/mpfr" --with-gmp="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make isl
       run: |
+        cd ${SOURCE_DIR}/isl
+        aclocal && autoconf && autoheader && automake --add-missing
         cd ${BUILD_DIR}/build-isl
         ${SOURCE_DIR}/isl/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make mpc
       run: |
+        cd ${SOURCE_DIR}/mpc
+        aclocal && autoconf && autoheader && automake --add-missing
         cd ${BUILD_DIR}/build-mpc
         ${SOURCE_DIR}/mpc/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
         make all -j$(nproc --all)
