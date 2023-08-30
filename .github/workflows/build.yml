@@ -9,7 +9,6 @@ on:
 env:
   GMP_VERSION: "6.3.0"
   MPFR_VERSION: "4.2.1"
-  ISL_VERSION: "0.26"
   MPC_VERSION: "1.3.1"
   LINUX_VERSION: "6.5"
   GITHUB_USER: "${{secrets.USERNAME}}"
@@ -48,10 +47,6 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
         tar -xvf ${WGET_DIR}/mpfr-${MPFR_VERSION}.tar.gz -C ${SOURCE_DIR}
-    - name: Wget and unzip isl-${{ env.ISL_VERSION }}
-      run: |
-        wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
-        tar -xvf ${WGET_DIR}/isl-${ISL_VERSION}.tar.gz -C ${SOURCE_DIR}
     - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
@@ -60,12 +55,14 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://cdn.kernel.org/pub/linux/kernel/v${LINUX_VERSION%%.*}.x/linux-${LINUX_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/linux-${LINUX_VERSION}.tar.xz -C ${SOURCE_DIR}
-    - name: Clone musl
-      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
+    - name: Clone isl
+      run: git clone git://repo.or.cz/w/isl -b master ${SOURCE_DIR}/isl --depth=1
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
       run: git clone git://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
+    - name: Clone musl
+      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Fix a bug
       run: |
         sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
@@ -84,7 +81,7 @@ jobs:
     - name: Make isl
       run: |
         cd ${BUILD_DIR}/build-isl
-        ${SOURCE_DIR}/isl-${ISL_VERSION}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
+        ${SOURCE_DIR}/isl/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make mpc
