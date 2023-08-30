@@ -254,17 +254,7 @@ jobs:
           !${{ env.OUTPUT_DIR }}/isl/*
 
   build-gcc:
-    needs: [ build-mpc, build-isl ]
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        build-steps:
-          - compiler
-          - libgcc-static
-          - libgcc-shared
-          - libstdc++-v3
-          - libgomp
     steps:
     - name: Install tools
       run: |
@@ -272,7 +262,7 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: |
-        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
+        mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-gcc,build-musl}
     - name: Restore gmp
       uses: actions/download-artifact@v3
       with:
@@ -293,6 +283,8 @@ jobs:
       with:
         name: isl
         path: ${{ env.OUTPUT_DIR }}/isl
+    - name: Clone musl
+      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Clone gcc
       run: git clone git://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Fix a bug
@@ -303,22 +295,16 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         ${SOURCE_DIR}/gcc/configure --target="aarch64-linux-musl" --prefix="${MPREFIX}" --with-sysroot="${MSYSROOT}" --enable-languages="c,c++" --disable-multilib --disable-bootstrap --disable-libsanitizer --disable-werror --enable-initfini-array --with-arch=armv8-a --with-abi=lp64 --enable-fix-cortex-a53-835769 --enable-fix-cortex-a53-843419 --with-gmp="${OUTPUT_DIR}/gmp" --with-mpc="${OUTPUT_DIR}/mpc" --with-mpfr="${OUTPUT_DIR}/mpfr" --with-isl="${OUTPUT_DIR}/isl"
     - name: Make gcc (compiler)
-      if: ${{ matrix.build-steps == 'compiler' }}
       run: |
         cd ${BUILD_DIR}/build-gcc
         make all-gcc -j$(nproc --all)
         make install-strip-gcc -j$(nproc --all)
-    - name: Clone musl
-      if: ${{ matrix.build-steps == 'libgcc-static' }}
-      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Make gcc (libgcc-static)
-      if: ${{ matrix.build-steps == 'libgcc-static' }}
       run: |
         cd ${BUILD_DIR}/build-gcc
         make enable_shared=no all-target-libgcc -j$(nproc --all)
         make install-strip-target-libgcc -j$(nproc --all)
     - name: Configure musl
-      if: ${{ matrix.build-steps == 'libgcc-static' }}
       run: |
         cd ${BUILD_DIR}/build-musl
         LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
@@ -328,7 +314,6 @@ jobs:
         LIBCC="${LIBCC_DIR}/libgcc.a"
         ${SOURCE_DIR}/musl/configure --host="aarch64-linux-musl" --prefix="/usr"
     - name: Make musl
-      if: ${{ matrix.build-steps == 'libgcc-static' }}
       run: |
         cd ${BUILD_DIR}/build-musl
         make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
@@ -336,27 +321,25 @@ jobs:
         rm -vf ${MSYSROOT}/lib/ld-musl-aarch64.so.1
         cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/lib/ld-musl-aarch64.so.1
     - name: Make gcc (libgcc-shared)
-      if: ${{ matrix.build-steps == 'libgcc-shared' }}
       run: |
         cd ${BUILD_DIR}/build-gcc
+        make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
         make enable_shared=yes all-target-libgcc -j$(nproc --all)
         make install-strip-target-libgcc -j$(nproc --all)
     - name: Make gcc (libstdc++-v3)
-      if: ${{ matrix.build-steps == 'libstdc++-v3' }}
       run: |
         cd ${BUILD_DIR}/build-gcc
         make all-target-libstdc++-v3 -j$(nproc --all)
         make install-strip-target-libstdc++-v3 -j$(nproc --all)
     - name: Make gcc (libgomp)
-      if: ${{ matrix.build-steps == 'libgomp' }}
       run: |
         cd ${BUILD_DIR}/build-gcc
         make all-target-libgomp -j$(nproc --all)
         make install-strip-target-libgomp -j$(nproc --all)
-    - name: Upload binutils
+    - name: Upload gcc
       uses: actions/upload-artifact@v3
       with:
-        name: gcc-${{ matrix.build-steps }}
+        name: gcc
         path: |
           ${{ env.OUTPUT_DIR }}/*
           !${{ env.OUTPUT_DIR }}/gmp/*
@@ -374,42 +357,40 @@ jobs:
         sudo apt-get install -y axel
     - name: Create directory
       run: |
-        mkdir -vp ${OUTPUT_DIR}/{linux-headers,musl-headers,binutils,gcc}
+        mkdir -vp ${OUTPUT_DIR}
     - name: Restore linux-headers
       uses: actions/download-artifact@v3
       with:
         name: linux-headers
-        path: ${{ env.OUTPUT_DIR }}/linux-headers
+        path: ${{ env.OUTPUT_DIR }}
     - name: Restore musl-headers
       uses: actions/download-artifact@v3
       with:
         name: musl-headers
-        path: ${{ env.OUTPUT_DIR }}/musl-headers
+        path: ${{ env.OUTPUT_DIR }}
     - name: Restore binutils
       uses: actions/download-artifact@v3
       with:
         name: binutils
-        path: ${{ env.OUTPUT_DIR }}/binutils
+        path: ${{ env.OUTPUT_DIR }}
     - name: Restore gcc
       uses: actions/download-artifact@v3
       with:
-        name: gcc-*
-        path: ${{ env.OUTPUT_DIR }}/gcc
-
-
-#    - name: Merge directory
-#      run: |
-#        cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
-#    - name: Push
-#      run: |
-#        git config --global user.name "${GITHUB_USER}"
-#        git config --global user.email "${GITHUB_EMAIL}"
-#        mkdir -vp /home/runner/work/git_clone
-#        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc /home/runner/work/git_clone -b main --depth=1
-#        cd /home/runner/work/git_clone
-#        OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
-#        [ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
-#        cp -avf ${MPREFIX}/* .
-#        git add . -f
-#        git commit -as -m "$(cat /tmp/start_time)" -m "$(./bin/aarch64-linux-musl-gcc --version)"
-#        git push origin main -f
+        name: gcc
+        path: ${{ env.OUTPUT_DIR }}
+    - name: Merge directory
+      run: |
+        cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
+    - name: Push
+      run: |
+        git config --global user.name "${GITHUB_USER}"
+        git config --global user.email "${GITHUB_EMAIL}"
+        mkdir -vp /home/runner/work/git_clone
+        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc /home/runner/work/git_clone -b main --depth=1
+        cd /home/runner/work/git_clone
+        #OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
+        #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
+        cp -avf ${MPREFIX}/* .
+        git add . -f
+        git commit -as -m "$(cat /tmp/start_time)" -m "$(./bin/aarch64-linux-musl-gcc --version)"
+        git push origin main -f
