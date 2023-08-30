@@ -53,7 +53,7 @@ jobs:
     - name: Clone gcc
       run: git clone https://gcc.gnu.org/git/gcc -b master ${SOURCE_DIR}/gcc --depth=1
     - name: Clone musl
-      run: git clone https://git.musl-libc.org/git/musl -b master ${SOURCE_DIR}/musl --depth=1
+      run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Fix a bug
       run: |
         sed -i 's/ off64_t / off_t /g' ${SOURCE_DIR}/gcc/libstdc++-v3/src/filesystem/ops-common.h
