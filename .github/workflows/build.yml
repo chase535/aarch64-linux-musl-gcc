@@ -42,7 +42,7 @@ jobs:
         cd ${SOURCE_DIR}/musl
         make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/musl-headers.tar.gz -C${MSYSROOT}/usr include
+      run: tar -czvf ${HOME}/musl-headers.tar.gz -C${MSYSROOT}/usr/include *
     - name: Upload musl headers
       uses: actions/upload-artifact@v3
       with:
@@ -66,7 +66,7 @@ jobs:
         make ARCH=arm64 mrproper -j$(nproc --all)
         make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/linux-headers.tar.gz -C${MSYSROOT}/usr include
+      run: tar -czvf ${HOME}/linux-headers.tar.gz -C${MSYSROOT}/usr/include *
     - name: Upload linux headers
       uses: actions/upload-artifact@v3
       with:
@@ -93,7 +93,7 @@ jobs:
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/gmp.tar.gz -C${OUTPUT_DIR} gmp
+      run: tar -czvf ${HOME}/gmp.tar.gz -C${OUTPUT_DIR}/gmp *
     - name: Upload gmp
       uses: actions/upload-artifact@v3
       with:
@@ -116,7 +116,7 @@ jobs:
         name: gmp
         path: ${{ env.HOME }}
     - name: Unzip file
-      run: tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
+      run: tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
     - name: Wget and unzip mpfr-${{ env.MPFR_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
@@ -128,7 +128,7 @@ jobs:
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/mpfr.tar.gz -C${OUTPUT_DIR} mpfr
+      run: tar -czvf ${HOME}/mpfr.tar.gz -C${OUTPUT_DIR}/mpfr *
     - name: Upload mpfr
       uses: actions/upload-artifact@v3
       with:
@@ -151,7 +151,7 @@ jobs:
         name: gmp
         path: ${{ env.HOME }}
     - name: Unzip file
-      run: tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
+      run: tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
     - name: Wget and unzip isl-${{ env.ISL_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
@@ -163,7 +163,7 @@ jobs:
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/isl.tar.gz -C${OUTPUT_DIR} isl
+      run: tar -czvf ${HOME}/isl.tar.gz -C${OUTPUT_DIR}/isl *
     - name: Upload isl
       uses: actions/upload-artifact@v3
       with:
@@ -192,8 +192,8 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
-        tar-xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}
+        tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
+        tar-xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}/mpfr
     - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
@@ -205,7 +205,7 @@ jobs:
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/mpc.tar.gz -C${OUTPUT_DIR} mpc
+      run: tar -czvf ${HOME}/mpc.tar.gz -C${OUTPUT_DIR}/mpc *
     - name: Upload mpc
       uses: actions/upload-artifact@v3
       with:
@@ -249,11 +249,11 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
-        tar-xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}
-        tar-xzvf ${HOME}/mpc.tar.gz -C ${OUTPUT_DIR}
-        tar-xzvf ${HOME}/isl.tar.gz -C ${OUTPUT_DIR}
-        tar-xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr
+        tar-xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}/gmp
+        tar-xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}/mpfr
+        tar-xzvf ${HOME}/mpc.tar.gz -C ${OUTPUT_DIR}/mpc
+        tar-xzvf ${HOME}/isl.tar.gz -C ${OUTPUT_DIR}/isl
+        tar-xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr/include
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
@@ -318,7 +318,7 @@ jobs:
     - name: Merge directory
       run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
     - name: Zip files
-      run: tar -czvf ${HOME}/gcc.tar.gz -C${OUTPUT_DIR} toolchain
+      run: tar -czvf ${HOME}/gcc.tar.gz -C${MPREFIX} *
     - name: Upload gcc
       uses: actions/upload-artifact@v3
       with:
@@ -353,8 +353,8 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar-xzvf ${HOME}/gcc.tar.gz -C ${OUTPUT_DIR}
-        tar-xzvf ${HOME}/linux-headers.tar.gz -C ${MPREFIX}/usr
+        tar-xzvf ${HOME}/gcc.tar.gz -C ${MPREFIX}
+        tar-xzvf ${HOME}/linux-headers.tar.gz -C ${MPREFIX}/usr/include
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
