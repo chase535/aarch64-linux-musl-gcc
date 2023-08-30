@@ -32,7 +32,7 @@ jobs:
     - name: Install tools
       run: |
         sudo apt-get update
-        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget mercurial meld
+        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: |
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-gmp,build-mpfr,build-mpc,build-isl,build-binutils,build-gcc,build-musl}
@@ -40,6 +40,7 @@ jobs:
       run: |
         wget -P ${WGET_DIR} https://gmplib.org/download/gmp/gmp-${GMP_VERSION}.tar.xz
         tar -xvf ${WGET_DIR}/gmp-${GMP_VERSION}.tar.xz -C ${SOURCE_DIR}
+        mv -f ${SOURCE_DIR}/gmp-${GMP_VERSION} ${SOURCE_DIR}/gmp
     - name: Clone mpfr
       run: git clone https://gitlab.inria.fr/mpfr/mpfr -b master ${SOURCE_DIR}/mpfr --depth=1
     - name: Clone isl
@@ -60,7 +61,7 @@ jobs:
     - name: Make gmp
       run: |
         cd ${BUILD_DIR}/build-gmp
-        ${SOURCE_DIR}/gmp-${GMP_VERSION}/configure --prefix="${OUTPUT_DIR}/gmp"
+        ${SOURCE_DIR}/gmp/configure --prefix="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
     - name: Make mpfr
