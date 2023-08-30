@@ -306,5 +306,5 @@ jobs:
         #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${MPREFIX}/* .
         git add . -f
-        git commit -as "$(./bin/aarch64-linux-musl-gcc --version)"
+        git commit -as -m "$(./bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
