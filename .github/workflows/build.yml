@@ -28,12 +28,13 @@ env:
   LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 
 jobs:
-  make-linux-and-musl-headers:
+  make-headers:
+    name: make ${{ matrix.select }} headers
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        build-select:
+        select:
           - linux
           - musl
     steps:
@@ -45,26 +46,26 @@ jobs:
       run: |
         mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone linux
-      if: ${{ matrix.build-select == 'linux' }}
+      if: ${{ matrix.select == 'linux' }}
       run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux -b master ${SOURCE_DIR}/linux --depth=1
     - name: Make linux headers
-      if: ${{ matrix.build-select == 'linux' }}
+      if: ${{ matrix.select == 'linux' }}
       run: |
         cd ${SOURCE_DIR}/linux
         make ARCH=arm64 mrproper -j$(nproc --all)
         make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
     - name: Clone musl
-      if: ${{ matrix.build-select == 'musl' }}
+      if: ${{ matrix.select == 'musl' }}
       run: git clone git://git.musl-libc.org/musl -b master ${SOURCE_DIR}/musl --depth=1
     - name: Make musl headers
-      if: ${{ matrix.build-select == 'musl' }}
+      if: ${{ matrix.select == 'musl' }}
       run: |
         cd ${SOURCE_DIR}/musl
         make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Upload binutils
       uses: actions/upload-artifact@v3
       with:
-        name: ${{ matrix.build-select }}-headers
+        name: ${{ matrix.select }}-headers
         path: ${{ env.OUTPUT_DIR }}/*
 
   build-gmp:
@@ -194,7 +195,7 @@ jobs:
         name: mpc
         path: ${{ env.OUTPUT_DIR }}/mpc/*
 
-  build-binutils-and-gcc:
+  build-gcc:
     needs: [ build-mpc, build-isl ]
     runs-on: ubuntu-latest
     steps:
@@ -300,7 +301,7 @@ jobs:
           !${{ env.OUTPUT_DIR }}/isl/*
 
   push:
-    needs: [ make-linux-and-musl-headers, build-binutils-and-gcc ]
+    needs: [ make-headers, build-gcc ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
