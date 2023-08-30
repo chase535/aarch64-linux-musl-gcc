@@ -53,7 +53,7 @@ jobs:
     #- name: Clone gmp
     #  run: hg clone https://gmplib.org/repo/gmp -b default ${SOURCE_DIR}/gmp
     - name: Clone isl
-      run: git clone git://repo.or.cz/w/isl -b master ${SOURCE_DIR}/isl --depth=1
+      run: git clone https://repo.or.cz/w/isl.git -b master ${SOURCE_DIR}/isl --depth=1
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb -b master ${SOURCE_DIR}/binutils --depth=1
     - name: Clone gcc
