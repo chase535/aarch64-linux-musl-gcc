@@ -123,6 +123,37 @@ jobs:
         name: mpfr
         path: ${{ env.OUTPUT_DIR }}/mpfr/*
 
+  build-isl:
+    needs: [ build-gmp ]
+    runs-on: ubuntu-latest
+    steps:
+    - name: Install tools
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
+    - name: Create directory
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-isl
+    - name: Restore gmp
+      uses: actions/download-artifact@v3
+      with:
+        name: gmp
+        path: ${{ env.OUTPUT_DIR }}/gmp
+    - name: Wget and unzip isl-${{ env.ISL_VERSION }}
+      run: |
+        wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
+        tar -xvf ${WGET_DIR}/isl-${ISL_VERSION}.tar.gz -C ${SOURCE_DIR}
+    - name: Make isl
+      run: |
+        cd ${BUILD_DIR}/build-isl
+        ${SOURCE_DIR}/isl-${ISL_VERSION}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
+        make all -j$(nproc --all)
+        make install -j$(nproc --all)
+    - name: Upload isl
+      uses: actions/upload-artifact@v3
+      with:
+        name: isl
+        path: ${{ env.OUTPUT_DIR }}/isl/*
+
   build-mpc:
     needs: [ build-gmp, build-mpfr ]
     runs-on: ubuntu-latest
@@ -158,37 +189,6 @@ jobs:
       with:
         name: mpc
         path: ${{ env.OUTPUT_DIR }}/mpc/*
-
-  build-isl:
-    needs: [ build-gmp ]
-    runs-on: ubuntu-latest
-    steps:
-    - name: Install tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
-    - name: Create directory
-      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-isl
-    - name: Restore gmp
-      uses: actions/download-artifact@v3
-      with:
-        name: gmp
-        path: ${{ env.OUTPUT_DIR }}/gmp
-    - name: Wget and unzip isl-${{ env.ISL_VERSION }}
-      run: |
-        wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
-        tar -xvf ${WGET_DIR}/isl-${ISL_VERSION}.tar.gz -C ${SOURCE_DIR}
-    - name: Make isl
-      run: |
-        cd ${BUILD_DIR}/build-isl
-        ${SOURCE_DIR}/isl-${ISL_VERSION}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
-        make all -j$(nproc --all)
-        make install -j$(nproc --all)
-    - name: Upload isl
-      uses: actions/upload-artifact@v3
-      with:
-        name: isl
-        path: ${{ env.OUTPUT_DIR }}/isl/*
 
   build-gcc:
     needs: [ make-headers, build-mpc, build-isl ]
