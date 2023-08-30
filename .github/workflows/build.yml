@@ -326,7 +326,7 @@ jobs:
           !${{ env.OUTPUT_DIR }}/isl/*
 
   push:
-    needs: [ make-linux-headers, make-musl-headers, build-binutils, build-gcc ]
+    needs: [ make-linux-headers, make-musl-headers, build-binutils-and-gcc ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
