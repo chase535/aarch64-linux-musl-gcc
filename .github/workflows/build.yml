@@ -42,7 +42,7 @@ jobs:
         cd ${SOURCE_DIR}/musl
         make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
     - name: Zip files
-      run: tar -czvf ${HOME}/musl-headers.tar.gz --transform s=${MSYSROOT}/usr/include/== ${MSYSROOT}/usr/include/*
+      run: tar -czvf ${HOME}/musl-headers.tar.gz -C${MSYSROOT}/usr/include/ ${MSYSROOT}/usr/include/*
     - name: Upload musl headers
       uses: actions/upload-artifact@v3
       with:
