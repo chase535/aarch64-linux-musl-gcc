@@ -13,9 +13,6 @@ env:
   MPFR_VERSION: "4.2.1"
   ISL_VERSION: "0.26"
   MPC_VERSION: "1.3.1"
-  GITHUB_USER: "${{ secrets.USERNAME }}"
-  GITHUB_EMAIL: "${{ secrets.EMAIL }}"
-  GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
   SOURCE_DIR: "${{ github.workspace }}/source"
   OUTPUT_DIR: "${{ github.workspace }}/output"
   BUILD_DIR: "${{ github.workspace }}/build"
@@ -300,10 +297,14 @@ jobs:
         name: gcc
         path: ${{ env.MPREFIX }}/*
 
-
   merge-and-push:
     needs: [ make-linux-headers, build-gcc ]
     runs-on: ubuntu-latest
+    env:
+      GIT_DIR: "${{ github.workspace }}/git_clone"
+      GITHUB_USER: "${{ secrets.USERNAME }}"
+      GITHUB_EMAIL: "${{ secrets.EMAIL }}"
+      GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
     steps:
     - name: Install tools
       run: |
@@ -326,9 +327,8 @@ jobs:
       run: |
         git config --global user.name "${GITHUB_USER}"
         git config --global user.email "${GITHUB_EMAIL}"
-        mkdir -vp /home/runner/work/git_clone
-        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc /home/runner/work/git_clone -b main --depth=1
-        cd /home/runner/work/git_clone
+        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${GIT_DIR} -b main --depth=1
+        cd ${GIT_DIR}
         #OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
         #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${MPREFIX}/* .
