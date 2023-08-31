@@ -59,7 +59,7 @@ jobs:
       run: echo "HASH=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}" >> ${GITHUB_ENV}
     - name: Cache ${{ env.SELECT }} headers
       uses: actions/cache@v3
-      id: ${{ env.SELECT }}-cache
+      id: ${{ matrix.select }}-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
         key: ${{ env.SELECT }}-${{ env.HASH }}
