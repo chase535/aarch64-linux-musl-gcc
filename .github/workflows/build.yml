@@ -48,7 +48,7 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
-    - name: Clone ${{ matrix.select }}
+    - name: Clone ${{ env.SELECT }}
       run: |
         if [ "${SELECT}" = "linux" ]; then
           git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
@@ -56,14 +56,14 @@ jobs:
           git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
         fi
     - name: Set hash value into environment variables
-      run: echo "${SELECT}_hash=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}" >> ${GITHUB_ENV}
-    - name: Cache ${{ matrix.select }} headers
+      run: echo "HASH=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}" >> ${GITHUB_ENV}
+    - name: Cache ${{ env.SELECT }} headers
       uses: actions/cache@v3
-      id: ${{ matrix.select }}-cache
+      id: ${{ env.SELECT }}-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
-        key: ${{ matrix.select }}-${{ env.${{ matrix.select }}_hash }}
-    - name: Make ${{ matrix.select }} headers
+        key: ${{ env.SELECT }}-${{ env.HASH }}
+    - name: Make ${{ env.SELECT }} headers
       run: |
         cd ${SOURCE_DIR}/${SELECT}
         if [ "${SELECT}" = "linux" ]; then
