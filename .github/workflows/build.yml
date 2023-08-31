@@ -329,6 +329,10 @@ jobs:
         make install-strip-target-libgomp -j$(nproc --all)
     - name: Merge dir and rename dir
       run: |
+        ls -l ${MPREFIX}/aarch64-linux-musl/bin
+        echo "0000000000000"
+        ls -l ${MSYSROOT}/usr/bin
+        echo "1111111111111"
         cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
         mv -f ${MPREFIX} ${OUTPUT_DIR}/no-linux-headers-gcc
         ls -l ${OUTPUT_DIR}/no-linux-headers-gcc/aarch64-linux-musl/bin
