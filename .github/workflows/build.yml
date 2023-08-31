@@ -13,6 +13,10 @@ env:
   MPFR_VERSION: "4.2.1"
   ISL_VERSION: "0.26"
   MPC_VERSION: "1.3.1"
+  CLONE_DIR: "${{ github.workspace }}/git_clone"
+  GITHUB_USER: "${{ secrets.USERNAME }}"
+  GITHUB_EMAIL: "${{ secrets.EMAIL }}"
+  GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
   HOME: "${{ github.workspace }}"
   SOURCE_DIR: "${{ github.workspace }}/source"
   OUTPUT_DIR: "${{ github.workspace }}/output"
@@ -217,7 +221,7 @@ jobs:
         name: mpc
         path: ${{ env.HOME }}/mpc.tar.gz
 
-  build-gcc:
+  build-gcc-and-push:
     needs: [ make-headers, build-mpc, build-isl ]
     runs-on: ubuntu-latest
     steps:
@@ -326,40 +330,8 @@ jobs:
         cd ${BUILD_DIR}/build-gcc
         make all-target-libgomp -j$(nproc --all)
         make install-strip-target-libgomp -j$(nproc --all)
-    - name: Merge dir and rename dir
-      run: |
-        cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
-        mv -f ${MPREFIX} ${OUTPUT_DIR}/aarch64-linux-musl-gcc
-    - name: Zip files
-      run: |
-        cd ${OUTPUT_DIR}
-        tar -czvf ${HOME}/aarch64-linux-musl-gcc.tar.gz aarch64-linux-musl-gcc
-    - name: Upload aarch64-linux-musl-gcc
-      uses: actions/upload-artifact@v3
-      with:
-        name: aarch64-linux-musl-gcc
-        path: ${{ env.HOME }}/aarch64-linux-musl-gcc.tar.gz
-
-  push:
-    needs: [ build-gcc ]
-    runs-on: ubuntu-latest
-    env:
-      CLONE_DIR: "/home/runner/work/git_clone"
-      GITHUB_USER: "${{ secrets.USERNAME }}"
-      GITHUB_EMAIL: "${{ secrets.EMAIL }}"
-      GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
-    steps:
-    - name: Install tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y git
-    - name: Restore aarch64-linux-musl-gcc
-      uses: actions/download-artifact@v3
-      with:
-        name: aarch64-linux-musl-gcc
-        path: ${{ env.HOME }}
-    - name: Unzip file and rename dir
-      run: tar -xzvf ${HOME}/aarch64-linux-musl-gcc.tar.gz -C ${HOME}
+    - name: Merge directory
+      run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
@@ -368,7 +340,7 @@ jobs:
         cd ${CLONE_DIR}
         #OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
         #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
-        cp -avf ${HOME}/aarch64-linux-musl-gcc/* ${CLONE_DIR}
+        cp -avf ${MPREFIX}/* ${CLONE_DIR}
         git add . -f
         git commit -as -m "$(${CLONE_DIR}/bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
