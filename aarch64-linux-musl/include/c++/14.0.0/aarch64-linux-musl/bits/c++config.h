@@ -1123,10 +1123,10 @@ namespace __gnu_cxx
 #define _GLIBCXX_HAVE_LINUX_FUTEX 1
 
 /* Define to 1 if you have the <linux/random.h> header file. */
-/* #undef _GLIBCXX_HAVE_LINUX_RANDOM_H */
+#define _GLIBCXX_HAVE_LINUX_RANDOM_H 1
 
 /* Define to 1 if you have the <linux/types.h> header file. */
-/* #undef _GLIBCXX_HAVE_LINUX_TYPES_H */
+#define _GLIBCXX_HAVE_LINUX_TYPES_H 1
 
 /* Define to 1 if you have the <locale.h> header file. */
 #define _GLIBCXX_HAVE_LOCALE_H 1
