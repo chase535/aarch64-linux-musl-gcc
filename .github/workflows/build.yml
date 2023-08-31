@@ -26,8 +26,17 @@ env:
   LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 
 jobs:
-  make-musl-headers:
+  make-headers:
+    name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
+    env:
+      SELECT: "${{ matrix.select }}"
+    strategy:
+      fail-fast: false
+      matrix:
+        select:
+          - linux
+          - musl
     steps:
     - name: Install tools
       run: |
@@ -35,47 +44,31 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
-    - name: Clone musl
-      run: git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/musl -b master --depth=1
-    - name: Make musl headers
+    - name: Clone ${{ matrix.select }}
       run: |
-        cd ${SOURCE_DIR}/musl
-        make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
+        if [ "${SELECT}" = "linux" ]; then
+          git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
+        elif [ "${SELECT}" = "musl" ]; then
+          git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
+        fi
+    - name: Make ${{ matrix.select }} headers
+      run: |
+        cd ${SOURCE_DIR}/${SELECT}
+        if [ "${SELECT}" = "linux" ]; then
+          make ARCH=arm64 mrproper -j$(nproc --all)
+          make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
+        elif [ "${SELECT}" = "musl" ]; then
+          make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
+        fi
     - name: Zip files
       run: |
         cd ${MSYSROOT}/usr
-        tar -czvf ${HOME}/musl-headers.tar.gz include
-    - name: Upload musl headers
+        tar -czvf ${HOME}/${SELECT}-headers.tar.gz include
+    - name: Upload ${{ matrix.select }} headers
       uses: actions/upload-artifact@v3
       with:
-        name: musl-headers
-        path: ${{ env.HOME }}/musl-headers.tar.gz
-
-  make-linux-headers:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Install tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
-    - name: Create directory
-      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
-    - name: Clone linux
-      run: git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/linux -b master --depth=1
-    - name: Make linux headers
-      run: |
-        cd ${SOURCE_DIR}/linux
-        make ARCH=arm64 mrproper -j$(nproc --all)
-        make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
-    - name: Zip files
-      run: |
-        cd ${MSYSROOT}/usr
-        tar -czvf ${HOME}/linux-headers.tar.gz include
-    - name: Upload linux headers
-      uses: actions/upload-artifact@v3
-      with:
-        name: linux-headers
-        path: ${{ env.HOME }}/linux-headers.tar.gz
+        name: ${{ matrix.select }}-headers
+        path: ${{ env.HOME }}/${{ matrix.select }}-headers.tar.gz
 
   build-gmp:
     runs-on: ubuntu-latest
@@ -347,7 +340,7 @@ jobs:
         name: aarch64-linux-musl-gcc
         path: ${{ env.HOME }}/aarch64-linux-musl-gcc.tar.gz
 
-  merge-and-push:
+  push:
     needs: [ build-gcc ]
     runs-on: ubuntu-latest
     env:
