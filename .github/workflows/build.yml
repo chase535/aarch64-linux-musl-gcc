@@ -45,19 +45,19 @@ jobs:
           - linux
           - musl
     steps:
-    - name: Clone ${{ matrix.select }}
+    - name: Wget html file
       run: |
         if [ "${SELECT}" = "linux" ]; then
-          git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
+          wget -P ${HOME} -O "index.html" https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit
         elif [ "${SELECT}" = "musl" ]; then
-          git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
+          wget -P ${HOME} -O "index.html" https://git.musl-libc.org/cgit/musl/commit
         fi
     - name: Set hash value into environment variables
       id: hash
       run: |
-        cd ${SOURCE_DIR}/${SELECT}
-        echo "${SELECT}_hash=$(git log -1 --format='%H')" >> ${GITHUB_OUTPUT}
-        echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
+        HASH=$(cat ${HOME}/index.html | grep '<th>commit</th>' | awk ' {if (match ($0, /[0-9a-f]{40}/)) {print substr ($0, RSTART, RLENGTH)}}')
+        echo "${SELECT}_hash=${HASH}" >> ${GITHUB_OUTPUT}
+        echo "HASH=${HASH}" >> ${GITHUB_ENV}
     - name: Cache ${{ matrix.select }} headers
       uses: actions/cache@v3
       id: headers-cache
@@ -75,6 +75,13 @@ jobs:
     - name: Create directory
       if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
+    - name: Clone ${{ matrix.select }}
+      run: |
+        if [ "${SELECT}" = "linux" ]; then
+          git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
+        elif [ "${SELECT}" = "musl" ]; then
+          git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
+        fi
     - name: Make ${{ matrix.select }} headers
       if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: |
