@@ -76,6 +76,7 @@ jobs:
       if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone ${{ matrix.select }}
+      if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: |
         if [ "${SELECT}" = "linux" ]; then
           git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
