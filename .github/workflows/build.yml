@@ -34,7 +34,7 @@ jobs:
     name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
     outputs:
-      ${{ matrix.select }}-hash: ${{ steps.hash.outputs.test }}
+      hash-value: ${{ steps.hash.outputs.HASH }}
     env:
       SELECT: "${{ matrix.select }}"
     strategy:
@@ -55,7 +55,7 @@ jobs:
       id: hash
       run: |
         cd ${SOURCE_DIR}/${SELECT}
-
+        echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_OUTPUT}
         echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
     - name: Cache ${{ matrix.select }} headers
       uses: actions/cache@v3
@@ -251,6 +251,8 @@ jobs:
   build-gcc-and-push:
     needs: [ make-headers, build-mpc, build-isl ]
     runs-on: ubuntu-latest
+    env:
+      LINUX_HASH: ${{needs.make-headers.outputs.hash-value}}
     steps:
     - name: Install tools
       run: |
