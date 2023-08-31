@@ -33,6 +33,8 @@ jobs:
   make-headers:
     name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
+    outputs:
+      ${{ matrix.select }}-output1: ${{ steps.${{ matrix.select }}-hash.outputs.test }}
     env:
       SELECT: "${{ matrix.select }}"
     strategy:
@@ -50,9 +52,10 @@ jobs:
           git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
         fi
     - name: Set hash value into environment variables
+      id: ${{ matrix.select }}-hash
       run: |
         cd ${SOURCE_DIR}/${SELECT}
-        echo "${SELECT}_hash=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
+
         echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
     - name: Cache ${{ matrix.select }} headers
       uses: actions/cache@v3
