@@ -48,7 +48,7 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
-    - name: Clone ${{ env.SELECT }}
+    - name: Clone ${{ matrix.select }}
       run: |
         if [ "${SELECT}" = "linux" ]; then
           git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
@@ -57,11 +57,9 @@ jobs:
         fi
     - name: Set hash value into environment variables
       run: |
-        rm -rf ${SOURCE_DIR}/${SELECT}/.git
         cd ${SOURCE_DIR}/${SELECT}
-        ls -al
-        echo "HASH=${{ hashFiles('./**') }}" >> ${GITHUB_ENV}
-    - name: Cache ${{ env.SELECT }} headers
+        echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
+    - name: Cache ${{ matrix.select }} headers
       uses: actions/cache@v3
       id: headers-cache
       with:
@@ -70,7 +68,7 @@ jobs:
     - name: Skip build
       if: ${{ steps.headers-cache.outputs.cache-hit == 'true' }}
       run: exit 0
-    - name: Make ${{ env.SELECT }} headers
+    - name: Make ${{ matrix.select }} headers
       if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: |
         cd ${SOURCE_DIR}/${SELECT}
