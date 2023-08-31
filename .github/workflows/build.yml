@@ -78,16 +78,20 @@ jobs:
       if: ${{ steps.gmp-cache.outputs.cache-hit == 'true' }}
       run: exit 0
     - name: Install tools
+      if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
+      if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${WGET_DIR} ${BUILD_DIR}/build-gmp
     - name: Wget and unzip gmp-${{ env.GMP_VERSION }}
+      if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/gmp/gmp-${GMP_VERSION}.tar.xz
         tar -xJvf ${WGET_DIR}/gmp-${GMP_VERSION}.tar.xz -C ${SOURCE_DIR}
     - name: Make gmp
+      if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
       run: |
         cd ${BUILD_DIR}/build-gmp
         ${SOURCE_DIR}/gmp-${GMP_VERSION}/configure --prefix="${OUTPUT_DIR}/gmp"
@@ -108,22 +112,27 @@ jobs:
       if: ${{ steps.isl-cache.outputs.cache-hit == 'true' }}
       run: exit 0
     - name: Cache gmp
+      if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache@v3
       id: gmp-cache
       with:
         path: ${{ env.OUTPUT_DIR }}/gmp
         key: gmp-${{ env.GMP_VERSION }}
     - name: Install tools
+      if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
+      if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-isl
     - name: Wget and unzip isl-${{ env.ISL_VERSION }}
+      if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
       run: |
         wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
         tar -xzvf ${WGET_DIR}/isl-${ISL_VERSION}.tar.gz -C ${SOURCE_DIR}
     - name: Make isl
+      if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
       run: |
         cd ${BUILD_DIR}/build-isl
         ${SOURCE_DIR}/isl-${ISL_VERSION}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
@@ -144,22 +153,27 @@ jobs:
       if: ${{ steps.mpfr-cache.outputs.cache-hit == 'true' }}
       run: exit 0
     - name: Cache gmp
+      if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache@v3
       id: gmp-cache
       with:
         path: ${{ env.OUTPUT_DIR }}/gmp
         key: gmp-${{ env.GMP_VERSION }}
     - name: Install tools
+      if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
+      if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-mpfr
     - name: Wget and unzip mpfr-${{ env.MPFR_VERSION }}
+      if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
         tar -xzvf ${WGET_DIR}/mpfr-${MPFR_VERSION}.tar.gz -C ${SOURCE_DIR}
     - name: Make mpfr
+      if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
       run: |
         cd ${BUILD_DIR}/build-mpfr
         ${SOURCE_DIR}/mpfr-${MPFR_VERSION}/configure --prefix="${OUTPUT_DIR}/mpfr" --with-gmp="${OUTPUT_DIR}/gmp"
@@ -180,28 +194,34 @@ jobs:
       if: ${{ steps.mpc-cache.outputs.cache-hit == 'true' }}
       run: exit 0
     - name: Cache gmp
+      if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache@v3
       id: gmp-cache
       with:
         path: ${{ env.OUTPUT_DIR }}/gmp
         key: gmp-${{ env.GMP_VERSION }}
     - name: Cache mpfr
+      if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
       uses: actions/cache@v3
       id: mpfr-cache
       with:
         path: ${{ env.OUTPUT_DIR }}/mpfr
         key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
     - name: Install tools
+      if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
+      if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr} ${WGET_DIR} ${BUILD_DIR}/build-mpc
     - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
+      if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
         tar -xzvf ${WGET_DIR}/mpc-${MPC_VERSION}.tar.gz -C ${SOURCE_DIR}
     - name: Make mpc
+      if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
       run: |
         cd ${BUILD_DIR}/build-mpc
         ${SOURCE_DIR}/mpc-${MPC_VERSION}/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
