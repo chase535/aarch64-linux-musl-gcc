@@ -59,11 +59,15 @@ jobs:
       run: echo "HASH=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}" >> ${GITHUB_ENV}
     - name: Cache ${{ env.SELECT }} headers
       uses: actions/cache@v3
-      id: ${{ matrix.select }}-cache
+      id: headers-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
         key: ${{ env.SELECT }}-${{ env.HASH }}
+    - name: Skip build
+      if: ${{ steps.headers-cache.outputs.cache-hit == 'true' }}
+      run: exit 0
     - name: Make ${{ env.SELECT }} headers
+      if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: |
         cd ${SOURCE_DIR}/${SELECT}
         if [ "${SELECT}" = "linux" ]; then
