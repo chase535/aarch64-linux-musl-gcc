@@ -225,7 +225,7 @@ jobs:
         path: ${{ env.HOME }}/mpc.tar.gz
 
   build-gcc:
-    needs: [ make-musl-headers, build-mpc, build-isl ]
+    needs: [ make-musl-headers, make-linux-headers, build-mpc, build-isl ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
@@ -259,6 +259,11 @@ jobs:
       with:
         name: musl-headers
         path: ${{ env.HOME }}
+    - name: Restore linux-headers
+      uses: actions/download-artifact@v3
+      with:
+        name: linux-headers
+        path: ${{ env.HOME }}
     - name: Unzip file
       run: |
         tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
@@ -266,6 +271,7 @@ jobs:
         tar -xzvf ${HOME}/mpc.tar.gz -C ${OUTPUT_DIR}
         tar -xzvf ${HOME}/isl.tar.gz -C ${OUTPUT_DIR}
         tar -xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr
+        tar -xzvf ${HOME}/linux-headers.tar.gz -C ${MSYSROOT}/usr
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
