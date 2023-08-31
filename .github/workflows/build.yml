@@ -63,7 +63,7 @@ jobs:
       id: headers-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
-        key: ${{ env.SELECT }}-${{ env.HASH }}
+        key: ${{ env.SELECT }}-headers-${{ env.HASH }}
     - name: Skip build
       if: ${{ steps.headers-cache.outputs.cache-hit == 'true' }}
       run: exit 0
@@ -299,13 +299,13 @@ jobs:
       id: musl-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
-        key: musl-${{ env.MUSL_HASH }}
+        key: musl-headers-${{ env.MUSL_HASH }}
     - name: Cache linux headers
       uses: actions/cache@v3
       id: linux-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
-        key: linux-${{ env.LINUX_HASH }}
+        key: linux-headers-${{ env.LINUX_HASH }}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
