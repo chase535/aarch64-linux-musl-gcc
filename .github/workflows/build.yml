@@ -55,6 +55,14 @@ jobs:
         elif [ "${SELECT}" = "musl" ]; then
           git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
         fi
+    - name: Set hash value into environment variables
+      run: echo "${SELECT}_hash=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}" >> ${GITHUB_ENV}
+    - name: Cache ${{ matrix.select }} headers
+      uses: actions/cache@v3
+      id: ${{ matrix.select }}-cache
+      with:
+        path: ${{ env.MSYSROOT }}/usr/include
+        key: ${{ matrix.select }}-${{ env.${{ matrix.select }}_hash }}
     - name: Make ${{ matrix.select }} headers
       run: |
         cd ${SOURCE_DIR}/${SELECT}
