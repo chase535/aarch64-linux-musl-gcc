@@ -57,8 +57,8 @@ jobs:
         fi
     - name: Set hash value into environment variables
       run: |
-        echo "HASH=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}"
-        echo "HASH=${{ hashFiles('${SOURCE_DIR}/${SELECT}/**') }}" >> ${GITHUB_ENV}
+        echo "HASH=${{ hashFiles("${SOURCE_DIR}/${SELECT}/**") }}"
+        echo "HASH=${{ hashFiles("${SOURCE_DIR}/${SELECT}/**") }}" >> ${GITHUB_ENV}
     - name: Cache ${{ env.SELECT }} headers
       uses: actions/cache@v3
       id: headers-cache
