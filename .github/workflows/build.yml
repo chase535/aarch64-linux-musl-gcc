@@ -34,7 +34,7 @@ jobs:
     name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
     outputs:
-      ${{ matrix.select }}-output1: ${{ steps.${{ matrix.select }}-hash.outputs.test }}
+      ${{ matrix.select }}-hash: ${{ steps.hash.outputs.test }}
     env:
       SELECT: "${{ matrix.select }}"
     strategy:
@@ -52,7 +52,7 @@ jobs:
           git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
         fi
     - name: Set hash value into environment variables
-      id: ${{ matrix.select }}-hash
+      id: hash
       run: |
         cd ${SOURCE_DIR}/${SELECT}
 
