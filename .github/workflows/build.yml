@@ -55,7 +55,7 @@ jobs:
     - name: Set hash value into environment variables
       id: hash
       run: |
-        HASH=$(cat ${HOME}/index.html | grep '<th>commit</th>' | awk ' {if (match ($0, /[0-9a-f]{40}/)) {print substr ($0, RSTART, RLENGTH)}}')
+        HASH=$(cat ${HOME}/index.html | grep '<th>commit</th>' | awk '{if (match ($0, /[0-9a-f]{40}/)) {print substr ($0, RSTART, RLENGTH)}}')
         echo "${SELECT}_hash=${HASH}" >> ${GITHUB_OUTPUT}
         echo "HASH=${HASH}" >> ${GITHUB_ENV}
     - name: Cache ${{ matrix.select }} headers
