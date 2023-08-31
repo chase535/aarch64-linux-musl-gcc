@@ -218,7 +218,7 @@ jobs:
         path: ${{ env.HOME }}/mpc.tar.gz
 
   build-gcc:
-    needs: [ make-musl-headers, make-linux-headers, build-mpc, build-isl ]
+    needs: [ make-headers, build-mpc, build-isl ]
     runs-on: ubuntu-latest
     steps:
     - name: Install tools
