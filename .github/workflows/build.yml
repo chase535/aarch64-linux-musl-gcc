@@ -64,19 +64,19 @@ jobs:
         elif [ "${SELECT}" = "musl" ]; then
           make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
         fi
-    - name: Zip files
-      run: |
-        cd ${MSYSROOT}/usr
-        tar -czvf ${HOME}/${SELECT}-headers.tar.gz include
-    - name: Upload ${{ matrix.select }} headers
-      uses: actions/upload-artifact@v3
-      with:
-        name: ${{ matrix.select }}-headers
-        path: ${{ env.HOME }}/${{ matrix.select }}-headers.tar.gz
 
   build-gmp:
     runs-on: ubuntu-latest
     steps:
+    - name: Cache gmp
+      uses: actions/cache@v3
+      id: gmp-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/gmp
+        key: gmp-${{ env.GMP_VERSION }}
+    - name: Skip build
+      if: ${{ steps.gmp-cache.outputs.cache-hit == 'true' }}
+      run: exit 0
     - name: Install tools
       run: |
         sudo apt-get update
@@ -93,33 +93,32 @@ jobs:
         ${SOURCE_DIR}/gmp-${GMP_VERSION}/configure --prefix="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
-    - name: Zip files
-      run: |
-        cd ${OUTPUT_DIR}
-        tar -czvf ${HOME}/gmp.tar.gz gmp
-    - name: Upload gmp
-      uses: actions/upload-artifact@v3
-      with:
-        name: gmp
-        path: ${{ env.HOME }}/gmp.tar.gz
 
   build-isl:
     needs: [ build-gmp ]
     runs-on: ubuntu-latest
     steps:
+    - name: Cache isl
+      uses: actions/cache@v3
+      id: isl-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/isl
+        key: isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
+    - name: Skip build
+      if: ${{ steps.isl-cache.outputs.cache-hit == 'true' }}
+      run: exit 0
+    - name: Cache gmp
+      uses: actions/cache@v3
+      id: gmp-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/gmp
+        key: gmp-${{ env.GMP_VERSION }}
     - name: Install tools
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-isl
-    - name: Restore gmp
-      uses: actions/download-artifact@v3
-      with:
-        name: gmp
-        path: ${{ env.HOME }}
-    - name: Unzip file
-      run: tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
     - name: Wget and unzip isl-${{ env.ISL_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://libisl.sourceforge.io/isl-${ISL_VERSION}.tar.gz
@@ -130,33 +129,32 @@ jobs:
         ${SOURCE_DIR}/isl-${ISL_VERSION}/configure --prefix="${OUTPUT_DIR}/isl" --with-gmp="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
-    - name: Zip files
-      run: |
-        cd ${OUTPUT_DIR}
-        tar -czvf ${HOME}/isl.tar.gz isl
-    - name: Upload isl
-      uses: actions/upload-artifact@v3
-      with:
-        name: isl
-        path: ${{ env.HOME }}/isl.tar.gz
 
   build-mpfr:
     needs: [ build-gmp ]
     runs-on: ubuntu-latest
     steps:
+    - name: Cache mpfr
+      uses: actions/cache@v3
+      id: mpfr-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/mpfr
+        key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
+    - name: Skip build
+      if: ${{ steps.mpfr-cache.outputs.cache-hit == 'true' }}
+      run: exit 0
+    - name: Cache gmp
+      uses: actions/cache@v3
+      id: gmp-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/gmp
+        key: gmp-${{ env.GMP_VERSION }}
     - name: Install tools
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/gmp ${WGET_DIR} ${BUILD_DIR}/build-mpfr
-    - name: Restore gmp
-      uses: actions/download-artifact@v3
-      with:
-        name: gmp
-        path: ${{ env.HOME }}
-    - name: Unzip file
-      run: tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
     - name: Wget and unzip mpfr-${{ env.MPFR_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpfr/mpfr-${MPFR_VERSION}.tar.gz
@@ -167,40 +165,38 @@ jobs:
         ${SOURCE_DIR}/mpfr-${MPFR_VERSION}/configure --prefix="${OUTPUT_DIR}/mpfr" --with-gmp="${OUTPUT_DIR}/gmp"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
-    - name: Zip files
-      run: |
-        cd ${OUTPUT_DIR}
-        tar -czvf ${HOME}/mpfr.tar.gz mpfr
-    - name: Upload mpfr
-      uses: actions/upload-artifact@v3
-      with:
-        name: mpfr
-        path: ${{ env.HOME }}/mpfr.tar.gz
 
   build-mpc:
     needs: [ build-gmp, build-mpfr ]
     runs-on: ubuntu-latest
     steps:
+    - name: Cache mpc
+      uses: actions/cache@v3
+      id: mpc-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/mpc
+        key: mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
+    - name: Skip build
+      if: ${{ steps.mpc-cache.outputs.cache-hit == 'true' }}
+      run: exit 0
+    - name: Cache gmp
+      uses: actions/cache@v3
+      id: gmp-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/gmp
+        key: gmp-${{ env.GMP_VERSION }}
+    - name: Cache mpfr
+      uses: actions/cache@v3
+      id: mpfr-cache
+      with:
+        path: ${{ env.OUTPUT_DIR }}/mpfr
+        key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
     - name: Install tools
       run: |
         sudo apt-get update
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr} ${WGET_DIR} ${BUILD_DIR}/build-mpc
-    - name: Restore gmp
-      uses: actions/download-artifact@v3
-      with:
-        name: gmp
-        path: ${{ env.HOME }}
-    - name: Restore mpfr
-      uses: actions/download-artifact@v3
-      with:
-        name: mpfr
-        path: ${{ env.HOME }}
-    - name: Unzip file
-      run: |
-        tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
-        tar -xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}
     - name: Wget and unzip mpc-${{ env.MPC_VERSION }}
       run: |
         wget -P ${WGET_DIR} https://ftp.gnu.org/gnu/mpc/mpc-${MPC_VERSION}.tar.gz
@@ -211,15 +207,6 @@ jobs:
         ${SOURCE_DIR}/mpc-${MPC_VERSION}/configure --prefix="${OUTPUT_DIR}/mpc" --with-gmp="${OUTPUT_DIR}/gmp" --with-mpfr="${OUTPUT_DIR}/mpfr"
         make all -j$(nproc --all)
         make install -j$(nproc --all)
-    - name: Zip files
-      run: |
-        cd ${OUTPUT_DIR}
-        tar -czvf ${HOME}/mpc.tar.gz mpc
-    - name: Upload mpc
-      uses: actions/upload-artifact@v3
-      with:
-        name: mpc
-        path: ${{ env.HOME }}/mpc.tar.gz
 
   build-gcc-and-push:
     needs: [ make-headers, build-mpc, build-isl ]
@@ -231,26 +218,30 @@ jobs:
         sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
     - name: Create directory
       run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
-    - name: Restore gmp
-      uses: actions/download-artifact@v3
+    - name: Cache gmp
+      uses: actions/cache@v3
+      id: gmp-cache
       with:
-        name: gmp
-        path: ${{ env.HOME }}
-    - name: Restore mpfr
-      uses: actions/download-artifact@v3
+        path: ${{ env.OUTPUT_DIR }}/gmp
+        key: gmp-${{ env.GMP_VERSION }}
+    - name: Cache mpfr
+      uses: actions/cache@v3
+      id: mpfr-cache
       with:
-        name: mpfr
-        path: ${{ env.HOME }}
-    - name: Restore mpc
-      uses: actions/download-artifact@v3
+        path: ${{ env.OUTPUT_DIR }}/mpfr
+        key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
+    - name: Cache isl
+      uses: actions/cache@v3
+      id: isl-cache
       with:
-        name: mpc
-        path: ${{ env.HOME }}
-    - name: Restore isl
-      uses: actions/download-artifact@v3
+        path: ${{ env.OUTPUT_DIR }}/isl
+        key: isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
+    - name: Cache mpc
+      uses: actions/cache@v3
+      id: mpc-cache
       with:
-        name: isl
-        path: ${{ env.HOME }}
+        path: ${{ env.OUTPUT_DIR }}/mpc
+        key: mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
     - name: Restore musl-headers
       uses: actions/download-artifact@v3
       with:
@@ -263,10 +254,6 @@ jobs:
         path: ${{ env.HOME }}
     - name: Unzip file
       run: |
-        tar -xzvf ${HOME}/gmp.tar.gz -C ${OUTPUT_DIR}
-        tar -xzvf ${HOME}/mpfr.tar.gz -C ${OUTPUT_DIR}
-        tar -xzvf ${HOME}/mpc.tar.gz -C ${OUTPUT_DIR}
-        tar -xzvf ${HOME}/isl.tar.gz -C ${OUTPUT_DIR}
         tar -xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr
         tar -xzvf ${HOME}/linux-headers.tar.gz -C ${MSYSROOT}/usr
     - name: Clone binutils
