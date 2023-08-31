@@ -336,19 +336,19 @@ jobs:
     - name: Merge dir and rename dir
       run: |
         cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
-        mv -f ${MPREFIX} ${OUTPUT_DIR}/no-linux-headers-gcc
+        mv -f ${MPREFIX} ${OUTPUT_DIR}/aarch64-linux-musl-gcc
     - name: Zip files
       run: |
         cd ${OUTPUT_DIR}
-        tar -czvf ${HOME}/no-linux-headers-gcc.tar.gz no-linux-headers-gcc
-    - name: Upload no-linux-headers-gcc
+        tar -czvf ${HOME}/aarch64-linux-musl-gcc.tar.gz aarch64-linux-musl-gcc
+    - name: Upload aarch64-linux-musl-gcc
       uses: actions/upload-artifact@v3
       with:
-        name: no-linux-headers-gcc
-        path: ${{ env.HOME }}/no-linux-headers-gcc.tar.gz
+        name: aarch64-linux-musl-gcc
+        path: ${{ env.HOME }}/aarch64-linux-musl-gcc.tar.gz
 
   merge-and-push:
-    needs: [ make-linux-headers, build-gcc ]
+    needs: [ build-gcc ]
     runs-on: ubuntu-latest
     env:
       CLONE_DIR: "/home/runner/work/git_clone"
@@ -360,21 +360,13 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y git
-    - name: Restore no-linux-headers-gcc
+    - name: Restore aarch64-linux-musl-gcc
       uses: actions/download-artifact@v3
       with:
-        name: no-linux-headers-gcc
-        path: ${{ env.HOME }}
-    - name: Restore linux-headers
-      uses: actions/download-artifact@v3
-      with:
-        name: linux-headers
+        name: aarch64-linux-musl-gcc
         path: ${{ env.HOME }}
     - name: Unzip file and rename dir
-      run: |
-        tar -xzvf ${HOME}/no-linux-headers-gcc.tar.gz -C ${HOME}
-        tar -xzvf ${HOME}/linux-headers.tar.gz -C ${HOME}/no-linux-headers-gcc/aarch64-linux-musl
-        mv -f ${HOME}/no-linux-headers-gcc ${HOME}/final
+      run: tar -xzvf ${HOME}/aarch64-linux-musl-gcc.tar.gz -C ${HOME}
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
@@ -383,7 +375,7 @@ jobs:
         cd ${CLONE_DIR}
         #OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
         #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
-        cp -avf ${HOME}/final/* ${CLONE_DIR}
+        cp -avf ${HOME}/aarch64-linux-musl-gcc/* ${CLONE_DIR}
         git add . -f
-        git commit -as -m "$(./bin/aarch64-linux-musl-gcc --version)"
+        git commit -as -m "$(${CLONE_DIR}/bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
