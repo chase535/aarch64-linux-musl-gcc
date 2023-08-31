@@ -329,13 +329,8 @@ jobs:
         make install-strip-target-libgomp -j$(nproc --all)
     - name: Merge dir and rename dir
       run: |
-        ls -l ${MPREFIX}/aarch64-linux-musl/bin
-        echo "0000000000000"
         cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
-        ls -l ${MPREFIX}/aarch64-linux-musl/bin
-        echo "1111111111111"
         mv -f ${MPREFIX} ${OUTPUT_DIR}/no-linux-headers-gcc
-        ls -l ${OUTPUT_DIR}/no-linux-headers-gcc/aarch64-linux-musl/bin
     - name: Zip files
       run: |
         cd ${OUTPUT_DIR}
@@ -350,7 +345,7 @@ jobs:
     needs: [ make-linux-headers, build-gcc ]
     runs-on: ubuntu-latest
     env:
-      GIT_DIR: "/home/runner/work/git_clone"
+      CLONE_DIR: "/home/runner/work/git_clone"
       GITHUB_USER: "${{ secrets.USERNAME }}"
       GITHUB_EMAIL: "${{ secrets.EMAIL }}"
       GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
@@ -374,20 +369,15 @@ jobs:
         tar -xzvf ${HOME}/no-linux-headers-gcc.tar.gz -C ${HOME}
         tar -xzvf ${HOME}/linux-headers.tar.gz -C ${HOME}/no-linux-headers-gcc/aarch64-linux-musl
         mv -f ${HOME}/no-linux-headers-gcc ${HOME}/final
-        ls -al ${HOME}/final/aarch64-linux-musl/bin
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
         git config --global user.email "${GITHUB_EMAIL}"
-        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${GIT_DIR} -b main --depth=1
-        cd ${GIT_DIR}
-        ls -al
+        git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${CLONE_DIR} -b main --depth=1
+        cd ${CLONE_DIR}
         #OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
         #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
-        cp -avf ${HOME}/final/* .
-        ls -al
-        pwd
-        [ -z "$(git diff)" ] && echo "没有更改" && exit 0
+        cp -avf ${HOME}/final/* ${CLONE_DIR}
         git add . -f
         git commit -as -m "$(./bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
