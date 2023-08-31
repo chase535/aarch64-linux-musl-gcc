@@ -42,12 +42,6 @@ jobs:
           - linux
           - musl
     steps:
-    - name: Install tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
-    - name: Create directory
-      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Clone ${{ matrix.select }}
       run: |
         if [ "${SELECT}" = "linux" ]; then
@@ -58,6 +52,7 @@ jobs:
     - name: Set hash value into environment variables
       run: |
         cd ${SOURCE_DIR}/${SELECT}
+        echo "${SELECT}_hash=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
         echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
     - name: Cache ${{ matrix.select }} headers
       uses: actions/cache@v3
@@ -68,6 +63,14 @@ jobs:
     - name: Skip build
       if: ${{ steps.headers-cache.outputs.cache-hit == 'true' }}
       run: exit 0
+    - name: Install tools
+      if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
+    - name: Create directory
+      if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
+      run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
     - name: Make ${{ matrix.select }} headers
       if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
       run: |
@@ -276,20 +279,18 @@ jobs:
       with:
         path: ${{ env.OUTPUT_DIR }}/mpc
         key: mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
-    - name: Restore musl-headers
-      uses: actions/download-artifact@v3
+    - name: Cache musl headers
+      uses: actions/cache@v3
+      id: musl-cache
       with:
-        name: musl-headers
-        path: ${{ env.HOME }}
-    - name: Restore linux-headers
-      uses: actions/download-artifact@v3
+        path: ${{ env.MSYSROOT }}/usr/include
+        key: musl-${{ env.musl_hash }}
+    - name: Cache linux headers
+      uses: actions/cache@v3
+      id: linux-cache
       with:
-        name: linux-headers
-        path: ${{ env.HOME }}
-    - name: Unzip file
-      run: |
-        tar -xzvf ${HOME}/musl-headers.tar.gz -C ${MSYSROOT}/usr
-        tar -xzvf ${HOME}/linux-headers.tar.gz -C ${MSYSROOT}/usr
+        path: ${{ env.MSYSROOT }}/usr/include
+        key: linux-${{ env.linux_hash }}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
