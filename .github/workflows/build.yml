@@ -57,7 +57,9 @@ jobs:
         fi
     - name: Set hash value into environment variables
       run: |
+        rm -rf ${SOURCE_DIR}/${SELECT}/.git
         cd ${SOURCE_DIR}/${SELECT}
+        ls -al
         echo "HASH=${{ hashFiles('./**') }}" >> ${GITHUB_ENV}
     - name: Cache ${{ env.SELECT }} headers
       uses: actions/cache@v3
