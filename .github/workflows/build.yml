@@ -331,6 +331,7 @@ jobs:
       run: |
         cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
         mv -f ${MPREFIX} ${OUTPUT_DIR}/no-linux-headers-gcc
+        ls -l ${OUTPUT_DIR}/no-linux-headers-gcc/aarch64-linux-musl/bin
     - name: Zip files
       run: |
         cd ${OUTPUT_DIR}
@@ -375,11 +376,10 @@ jobs:
         git config --global user.email "${GITHUB_EMAIL}"
         git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${GIT_DIR} -b main --depth=1
         cd ${GIT_DIR}
-        #OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
-        #[ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
+        OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
+        [ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${HOME}/final/* ${GIT_DIR}
         chmod -R 0777 ${GIT_DIR}
-        [ -z "$(git diff)" ] && echo "没有更改" && exit 0
         git add . -f
         git commit -as -m "$(./bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
