@@ -34,7 +34,8 @@ jobs:
     name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
     outputs:
-      hash-value: ${{ steps.hash.outputs.HASH }}
+      linux-hash-value: ${{ steps.hash.outputs.linux_hash }}
+      musl-hash-value: ${{ steps.hash.outputs.musl_hash }}
     env:
       SELECT: "${{ matrix.select }}"
     strategy:
@@ -55,7 +56,7 @@ jobs:
       id: hash
       run: |
         cd ${SOURCE_DIR}/${SELECT}
-        echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_OUTPUT}
+        echo "${SELECT}_hash=$(git log -1 --format='%H')" >> ${GITHUB_OUTPUT}
         echo "HASH=$(git log -1 --format='%H')" >> ${GITHUB_ENV}
     - name: Cache ${{ matrix.select }} headers
       uses: actions/cache@v3
@@ -252,7 +253,8 @@ jobs:
     needs: [ make-headers, build-mpc, build-isl ]
     runs-on: ubuntu-latest
     env:
-      LINUX_HASH: ${{needs.make-headers.outputs.hash-value}}
+      LINUX_HASH: ${{ needs.make-headers.outputs.linux-hash-value }}
+      MUSL_HASH: ${{ needs.make-headers.outputs.musl-hash-value }}
     steps:
     - name: Install tools
       run: |
@@ -289,13 +291,13 @@ jobs:
       id: musl-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
-        key: musl-${{ env.musl_hash }}
+        key: musl-${{ env.MUSL_HASH }}
     - name: Cache linux headers
       uses: actions/cache@v3
       id: linux-cache
       with:
         path: ${{ env.MSYSROOT }}/usr/include
-        key: linux-${{ env.linux_hash }}
+        key: linux-${{ env.LINUX_HASH }}
     - name: Clone binutils
       run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
     - name: Clone gcc
