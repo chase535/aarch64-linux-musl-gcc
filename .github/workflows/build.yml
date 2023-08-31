@@ -374,6 +374,7 @@ jobs:
         tar -xzvf ${HOME}/no-linux-headers-gcc.tar.gz -C ${HOME}
         tar -xzvf ${HOME}/linux-headers.tar.gz -C ${HOME}/no-linux-headers-gcc/aarch64-linux-musl
         mv -f ${HOME}/no-linux-headers-gcc ${HOME}/final
+        ls -al ${HOME}/final/aarch64-linux-musl/bin
     - name: Push
       run: |
         git config --global user.name "${GITHUB_USER}"
