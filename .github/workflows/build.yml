@@ -378,6 +378,7 @@ jobs:
         OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
         [ -n "${OLD_FILES}" ] && git rm -rf ${OLD_FILES} && git commit -as -m "Delete old files"
         cp -avf ${MPREFIX}/* ${CLONE_DIR}
+        chmod -R 0777 ${CLONE_DIR}
         git add . -f
         git commit -as -m "$(${CLONE_DIR}/bin/aarch64-linux-musl-gcc --version)"
         git push origin main -f
