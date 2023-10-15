@@ -210,7 +210,7 @@ jobs:
       id: mpfr-cache
       with:
         path: ${{ env.OUTPUT_DIR }}/mpfr
-        key: mpfr-${{ env.mpfr_version }}-gmp${{ env.gmp_version }}
+        key: mpfr-${{ env.mpfr_version }}-gmp${{ env.gmp-version }}
     - name: Skip build
       if: ${{ steps.mpfr-cache.outputs.cache-hit == 'true' }}
       run: exit 0
@@ -220,7 +220,7 @@ jobs:
       id: gmp-cache
       with:
         path: ${{ env.OUTPUT_DIR }}/gmp
-        key: gmp-${{ env.gmp_version }}
+        key: gmp-${{ env.gmp-version }}
     - name: Install tools
       if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
       run: |
