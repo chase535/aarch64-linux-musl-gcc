@@ -38,25 +38,25 @@ jobs:
       fail-fast: false
       matrix:
         select:
-          - LINUX
-          - MUSL
+          - linux
+          - musl
     steps:
       - name: Wget html file
         shell: bash
         run: |
-          if [[ "${SELECT}" == "LINUX" ]]; then
+          if [[ "${SELECT}" == "linux" ]]; then
             wget -P ${HOME} -O "${SELECT}.html" https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit
-          elif [[ "${SELECT}" == "MUSL" ]]; then
+          elif [[ "${SELECT}" == "musl" ]]; then
             wget -P ${HOME} -O "${SELECT}.html" https://git.musl-libc.org/cgit/musl/commit
           fi
-      - name: Get latest git commit id value
+      - name: Get latest git commit id
         id: commit_id
         run: |
           HASH=$(grep '<th>commit</th>' ${HOME}/${SELECT}.html | awk '{if (match ($0, /[0-9a-f]{40}/)) {print substr ($0, RSTART, RLENGTH)}}')
           echo "${HASH}"
-          echo "${SELECT}_COMMIT_ID=${HASH}" >> ${GITHUB_OUTPUT}
+          echo "${SELECT^^}_COMMIT_ID=${HASH}" >> ${GITHUB_OUTPUT}
           echo "HASH=${HASH}" >> ${GITHUB_ENV}
-      - name: Cache ${{ env.SELECT }} headers
+      - name: Cache ${{ matrix.select }} headers
         uses: actions/cache@v3
         id: headers-cache
         with:
@@ -73,24 +73,24 @@ jobs:
       - name: Create directory
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
         run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
-      - name: Clone ${{ env.SELECT }}
+      - name: Clone ${{ matrix.select }}
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: |
-          if [[ "${SELECT}" == "LINUX" ]]; then
+          if [[ "${SELECT}" == "linux" ]]; then
             git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
-          elif [[ "${SELECT}" == "MUSL" ]]; then
+          elif [[ "${SELECT}" == "musl" ]]; then
             git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
           fi
-      - name: Make ${{ env.SELECT }} headers
+      - name: Make ${{ matrix.select }} headers
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
         shell: bash
         run: |
           cd ${SOURCE_DIR}/${SELECT}
-          if [[ "${SELECT}" == "LINUX" ]]; then
+          if [[ "${SELECT}" == "linux" ]]; then
             make ARCH=arm64 mrproper -j$(nproc --all)
             make O="${OUTPUT_DIR}/linux" ARCH=arm64 INSTALL_HDR_PATH="${MSYSROOT}/usr" headers_install -j$(nproc --all)
-          elif [[ "${SELECT}" == "MUSL" ]]; then
+          elif [[ "${SELECT}" == "musl" ]]; then
             make ARCH="aarch64" prefix="/usr" DESTDIR="${MSYSROOT}" install-headers -j$(nproc --all)
           fi
 
