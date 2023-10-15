@@ -257,7 +257,7 @@ jobs:
     - name: Set version value into environment variables
       id: version
       run: |
-        mpc_version=$(grep "mpc-.*\.tar\.gz<" ${HOME}/mpc.html | tail -n 1 | awk '{match($0, /isl-[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
+        mpc_version=$(grep "mpc-.*\.tar\.gz<" ${HOME}/mpc.html | tail -n 1 | awk '{match($0, /mpc-[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
         echo "mpc_version=${mpc_version}" >> ${GITHUB_OUTPUT}
         echo "mpc_version=${mpc_version}" >> ${GITHUB_ENV}
     - name: Cache mpc
