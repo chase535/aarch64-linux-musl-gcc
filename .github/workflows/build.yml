@@ -2,11 +2,11 @@ name: Build
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - '.github/workflows/build.yml'
-  schedule:
-    - cron: '0 16 * * *'
+#  push:
+#    paths:
+#      - '.github/workflows/build.yml'
+#  schedule:
+#    - cron: '0 16 * * *'
 
 env:
   GITHUB_USER: "${{ secrets.USERNAME }}"
