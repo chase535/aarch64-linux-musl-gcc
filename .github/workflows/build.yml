@@ -100,11 +100,11 @@ jobs:
       GMP_VERSION: ${{ steps.version.outputs.GMP_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "gmp.html" https://ftp.gnu.org/gnu/gmp
+        run: wget -P ${HOME} -O "gmp.html" "https://ftp.gnu.org/gnu/gmp/?C=M;O=D"
       - name: Get latest isl version
         id: version
         run: |
-          GMP_VERSION=$(grep "gmp-.*\.tar\.xz<" ${HOME}/gmp.html | tail -n 1 | awk '{match($0, /gmp-[0-9]+\.[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
+          GMP_VERSION=$(grep -m 1 ">gmp-.*\.tar\.xz<" ${HOME}/gmp.html | awk '{match($0, /gmp-[0-9]+\.[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
           echo "${GMP_VERSION}"
           echo "GMP_VERSION=${GMP_VERSION}" >> ${GITHUB_OUTPUT}
           echo "GMP_VERSION=${GMP_VERSION}" >> ${GITHUB_ENV}
@@ -147,11 +147,11 @@ jobs:
       ISL_VERSION: ${{ steps.version.outputs.ISL_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "isl.html" https://libisl.sourceforge.io
+        run: wget -P ${HOME} -O "isl.html" "https://libisl.sourceforge.io/?C=M;O=D"
       - name: Get latest isl version
         id: version
         run: |
-          ISL_VERSION=$(grep "isl-.*\.tar\.gz<" ${HOME}/isl.html | tail -n 1 | awk '{match($0, /isl-[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
+          ISL_VERSION=$(grep -m 1 ">isl-.*\.tar\.gz<" ${HOME}/isl.html | awk '{match($0, /isl-[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
           echo "${ISL_VERSION}"
           echo "ISL_VERSION=${ISL_VERSION}" >> ${GITHUB_OUTPUT}
           echo "ISL_VERSION=${ISL_VERSION}" >> ${GITHUB_ENV}
@@ -201,11 +201,11 @@ jobs:
       MPFR_VERSION: ${{ steps.version.outputs.MPFR_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "mpfr.html" https://ftp.gnu.org/gnu/mpfr
+        run: wget -P ${HOME} -O "mpfr.html" "https://ftp.gnu.org/gnu/mpfr/?C=M;O=D"
       - name: Get latest mpfr version
         id: version
         run: |
-          MPFR_VERSION=$(grep "mpfr-.*\.tar\.gz<" ${HOME}/mpfr.html | tail -n 1 | awk '{match($0, /mpfr-[0-9]+\.[0-9]+\.[0-9]+/); print substr($0, RSTART+5, RLENGTH-5)}')
+          MPFR_VERSION=$(grep -m 1 ">mpfr-.*\.tar\.gz<" ${HOME}/mpfr.html | awk '{match($0, /mpfr-[0-9]+\.[0-9]+\.[0-9]+/); print substr($0, RSTART+5, RLENGTH-5)}')
           echo "${MPFR_VERSION}"
           echo "MPFR_VERSION=${MPFR_VERSION}" >> ${GITHUB_OUTPUT}
           echo "MPFR_VERSION=${MPFR_VERSION}" >> ${GITHUB_ENV}
@@ -256,11 +256,11 @@ jobs:
       MPC_VERSION: ${{ steps.version.outputs.MPC_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "mpc.html" https://ftp.gnu.org/gnu/mpc
+        run: wget -P ${HOME} -O "mpc.html" "https://ftp.gnu.org/gnu/mpc/?C=M;O=D"
       - name: Get latest mpc version
         id: version
         run: |
-          MPC_VERSION=$(grep "mpc-.*\.tar\.gz<" ${HOME}/mpc.html | tail -n 1 | awk '{match($0, /mpc-[0-9]+\.[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
+          MPC_VERSION=$(grep -m 1 ">mpc-.*\.tar\.gz<" ${HOME}/mpc.html | awk '{match($0, /mpc-[0-9]+\.[0-9]+\.[0-9]+/); print substr($0, RSTART+4, RLENGTH-4)}')
           echo "${MPC_VERSION}"
           echo "MPC_VERSION=${MPC_VERSION}" >> ${GITHUB_OUTPUT}
           echo "MPC_VERSION=${MPC_VERSION}" >> ${GITHUB_ENV}
