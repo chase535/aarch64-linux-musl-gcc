@@ -27,7 +27,7 @@ env:
 
 jobs:
   make-headers:
-    name: make-${{ env.SELECT }}-headers
+    name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
     outputs:
       LINUX_COMMIT_ID: ${{ steps.commit_id.outputs.LINUX_COMMIT_ID }}
