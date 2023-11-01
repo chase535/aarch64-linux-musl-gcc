@@ -395,21 +395,21 @@ jobs:
           cd ${BUILD_DIR}/build-musl
           export LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
           export ARCH="aarch64"
-          export CC="aarch64-linux-musl-gcc"
-          export CROSS_COMPILE="aarch64-linux-musl-"
+          export CC="aarch64-linux-gnu-gcc"
+          export CROSS_COMPILE="aarch64-linux-gnu-"
           export LIBCC="${LIBCC_DIR}/libgcc.a"
-          ${SOURCE_DIR}/musl/configure --host="aarch64-linux-musl" --prefix="/usr"
+          ${SOURCE_DIR}/musl/configure --host="aarch64-linux-gnu" --prefix="/usr"
       - name: Make musl
         run: |
           cd ${BUILD_DIR}/build-musl
-          make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" -j$(nproc --all)
-          make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
+          make AR="aarch64-linux-gnu-ar" RANLIB="aarch64-linux-gnu-ranlib" -j$(nproc --all)
+          make AR="aarch64-linux-gnu-ar" RANLIB="aarch64-linux-gnu-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
           rm -vf ${MSYSROOT}/lib/ld-musl-aarch64.so.1
           cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/lib/ld-musl-aarch64.so.1
       - name: Make gcc (libgcc-shared)
         run: |
           cd ${BUILD_DIR}/build-gcc
-          make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
+          make -C aarch64-linux-gnu/libgcc distclean -j$(nproc --all)
           make enable_shared=yes all-target-libgcc -j$(nproc --all)
           make install-strip-target-libgcc -j$(nproc --all)
       - name: Make gcc (libstdc++-v3)
