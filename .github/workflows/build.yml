@@ -101,7 +101,7 @@ jobs:
     steps:
       - name: Wget html file
         run: wget -P ${HOME} -O "gmp.html" "https://ftp.gnu.org/gnu/gmp/?C=M;O=D"
-      - name: Get latest isl version
+      - name: Get latest gmp version
         id: version
         run: |
           GMP_VERSION=$(grep -m 1 '>gmp-.*\.tar\.xz<' ${HOME}/gmp.html | awk '{match($0, />gmp-[\.0-9]*\</); print substr($0, RSTART+5, RLENGTH-6)}')
@@ -325,42 +325,42 @@ jobs:
           sudo apt-get install -y axel flex bison ncurses-dev texinfo gcc make libtool bc autoconf build-essential pkg-config tar lzip git autopoint gettext help2man txt2man libssl-dev wget
       - name: Create directory
         run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
+      - name: Cache linux headers
+        uses: actions/cache@v3
+        id: linux-headers-cache
+        with:
+          path: ${{ env.MSYSROOT }}/usr/include
+          key: linux-headers-${{ env.LINUX_COMMIT_ID }}
+      - name: Cache musl headers
+        uses: actions/cache@v3
+        id: musl-headers-cache
+        with:
+          path: ${{ env.MSYSROOT }}/usr/include
+          key: musl-headers-${{ env.MUSL_COMMIT_ID }}
       - name: Cache gmp
         uses: actions/cache@v3
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: gmp-${{ env.GMP_VERSION }}
-      - name: Cache mpfr
-        uses: actions/cache@v3
-        id: mpfr-cache
-        with:
-          path: ${{ env.OUTPUT_DIR }}/mpfr
-          key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Cache isl
         uses: actions/cache@v3
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
           key: isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
+      - name: Cache mpfr
+        uses: actions/cache@v3
+        id: mpfr-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/mpfr
+          key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Cache mpc
         uses: actions/cache@v3
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
           key: mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
-      - name: Cache musl headers
-        uses: actions/cache@v3
-        id: musl-cache
-        with:
-          path: ${{ env.MSYSROOT }}/usr/include
-          key: musl-headers-${{ env.MUSL_COMMIT_ID }}
-      - name: Cache linux headers
-        uses: actions/cache@v3
-        id: linux-cache
-        with:
-          path: ${{ env.MSYSROOT }}/usr/include
-          key: linux-headers-${{ env.LINUX_COMMIT_ID }}
       - name: Clone binutils
         run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
       - name: Clone gcc
