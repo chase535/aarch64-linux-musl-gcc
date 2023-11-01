@@ -393,11 +393,11 @@ jobs:
       - name: Configure musl
         run: |
           cd ${BUILD_DIR}/build-musl
-          LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
-          ARCH="aarch64"
-          CC="aarch64-linux-musl-gcc"
-          CROSS_COMPILE="aarch64-linux-musl-"
-          LIBCC="${LIBCC_DIR}/libgcc.a"
+          export LIBCC_DIR=$(find ${MPREFIX}/lib/gcc/aarch64-linux-musl -maxdepth 1 -type d -name "[0-9]*")
+          export ARCH="aarch64"
+          export CC="aarch64-linux-musl-gcc"
+          export CROSS_COMPILE="aarch64-linux-musl-"
+          export LIBCC="${LIBCC_DIR}/libgcc.a"
           ${SOURCE_DIR}/musl/configure --host="aarch64-linux-musl" --prefix="/usr"
       - name: Make musl
         run: |
