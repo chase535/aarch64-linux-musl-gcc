@@ -6,7 +6,7 @@ on:
     paths:
       - '.github/workflows/build.yml'
   schedule:
-    - cron: '0 16 * * *'
+    - cron: '0 1 * * 1'
 
 env:
   GITHUB_USER: "${{ secrets.USERNAME }}"
