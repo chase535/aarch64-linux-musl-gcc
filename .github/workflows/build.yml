@@ -364,7 +364,11 @@ jobs:
       - name: Clone binutils
         run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
       - name: Clone gcc
-        run: git clone git://gcc.gnu.org/git/gcc ${SOURCE_DIR}/gcc -b releases/gcc-13 --depth=1
+        run: git clone git://gcc.gnu.org/git/gcc ${SOURCE_DIR}/gcc -b master --depth=1
+      - name: Fix bug
+        run: |
+          sed -i "s/^LIB2ADD.*/#&/g" ${SOURCE_DIR}/gcc/libgcc/config/aarch64/t-heap-trampoline
+          cat ${SOURCE_DIR}/gcc/libgcc/config/aarch64/t-heap-trampoline
       - name: Clone musl
         run: git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/musl -b master --depth=1
       - name: Configure binutils
