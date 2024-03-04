@@ -30,6 +30,10 @@ env:
   CXXFLAGS: "-g0 -O2"
   LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 
+defaults:
+  run:
+    shell: bash
+
 jobs:
   make-headers:
     name: make-${{ matrix.select }}-headers
@@ -47,7 +51,6 @@ jobs:
           - musl
     steps:
       - name: Wget html file
-        shell: bash
         run: |
           if [[ "${SELECT}" == "linux" ]]; then
             wget -P ${HOME} -O "${SELECT}.html" https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit
@@ -62,7 +65,7 @@ jobs:
           echo "${SELECT^^}_COMMIT_ID=${HASH}" >> ${GITHUB_OUTPUT}
           echo "HASH=${HASH}" >> ${GITHUB_ENV}
       - name: Cache ${{ matrix.select }} headers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
@@ -80,7 +83,6 @@ jobs:
         run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR} ${MSYSROOT}/usr/include
       - name: Clone ${{ matrix.select }}
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
-        shell: bash
         run: |
           if [[ "${SELECT}" == "linux" ]]; then
             git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
@@ -89,7 +91,6 @@ jobs:
           fi
       - name: Make ${{ matrix.select }} headers
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
-        shell: bash
         run: |
           cd ${SOURCE_DIR}/${SELECT}
           if [[ "${SELECT}" == "linux" ]]; then
@@ -114,7 +115,7 @@ jobs:
           echo "GMP_VERSION=${GMP_VERSION}" >> ${GITHUB_OUTPUT}
           echo "GMP_VERSION=${GMP_VERSION}" >> ${GITHUB_ENV}
       - name: Cache gmp
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
@@ -161,7 +162,7 @@ jobs:
           echo "ISL_VERSION=${ISL_VERSION}" >> ${GITHUB_OUTPUT}
           echo "ISL_VERSION=${ISL_VERSION}" >> ${GITHUB_ENV}
       - name: Cache isl
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
@@ -171,7 +172,7 @@ jobs:
         run: exit 0
       - name: Cache gmp
         if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
@@ -215,7 +216,7 @@ jobs:
           echo "MPFR_VERSION=${MPFR_VERSION}" >> ${GITHUB_OUTPUT}
           echo "MPFR_VERSION=${MPFR_VERSION}" >> ${GITHUB_ENV}
       - name: Cache mpfr
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
@@ -225,7 +226,7 @@ jobs:
         run: exit 0
       - name: Cache gmp
         if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
@@ -270,7 +271,7 @@ jobs:
           echo "MPC_VERSION=${MPC_VERSION}" >> ${GITHUB_OUTPUT}
           echo "MPC_VERSION=${MPC_VERSION}" >> ${GITHUB_ENV}
       - name: Cache mpc
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
@@ -280,14 +281,14 @@ jobs:
         run: exit 0
       - name: Cache gmp
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: gmp-${{ env.GMP_VERSION }}
       - name: Cache mpfr
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
@@ -331,37 +332,37 @@ jobs:
       - name: Create directory
         run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
       - name: Cache linux headers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: linux-headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
           key: linux-headers-${{ env.LINUX_COMMIT_ID }}
       - name: Cache musl headers
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: musl-headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
           key: musl-headers-${{ env.MUSL_COMMIT_ID }}
       - name: Cache gmp
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: gmp-${{ env.GMP_VERSION }}
       - name: Cache isl
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
           key: isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Cache mpfr
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
           key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Cache mpc
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
