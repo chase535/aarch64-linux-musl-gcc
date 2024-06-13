@@ -35,6 +35,18 @@ defaults:
     shell: bash
 
 jobs:
+  delete-old-workflow-runs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Delete old workflow runs
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_workflow_pattern: 'Build'
+
   make-headers:
     name: make-${{ matrix.select }}-headers
     runs-on: ubuntu-latest
