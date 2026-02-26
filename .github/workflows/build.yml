@@ -440,6 +440,11 @@ jobs:
           cd ${BUILD_DIR}/build-gcc
           make all-target-libgomp -j$(nproc --all)
           make install-strip-target-libgomp -j$(nproc --all)
+      - name: Make gcc (libatomic)
+        run: |
+          cd ${BUILD_DIR}/build-gcc
+          make all-target-libatomic -j$(nproc --all)
+          make install-strip-target-libatomic -j$(nproc --all)
       - name: Merge directory
         run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
       - name: Push
