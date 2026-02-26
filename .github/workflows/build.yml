@@ -426,27 +426,12 @@ jobs:
           make AR="aarch64-linux-musl-ar" RANLIB="aarch64-linux-musl-ranlib" DESTDIR="${MSYSROOT}" install -j$(nproc --all)
           rm -vf ${MSYSROOT}/lib/ld-musl-aarch64.so.1
           cp -avf ${MSYSROOT}/usr/lib/libc.so ${MSYSROOT}/lib/ld-musl-aarch64.so.1
-      - name: Make gcc (libgcc-shared)
+      - name: Make gcc (target libraries)
         run: |
           cd ${BUILD_DIR}/build-gcc
           make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
-          make enable_shared=yes all-target-libgcc -j$(nproc --all)
-          make install-strip-target-libgcc -j$(nproc --all)
-      - name: Make gcc (libstdc++-v3)
-        run: |
-          cd ${BUILD_DIR}/build-gcc
-          make all-target-libstdc++-v3 -j$(nproc --all)
-          make install-strip-target-libstdc++-v3 -j$(nproc --all)
-      - name: Make gcc (libgomp)
-        run: |
-          cd ${BUILD_DIR}/build-gcc
-          make all-target-libgomp -j$(nproc --all)
-          make install-strip-target-libgomp -j$(nproc --all)
-      - name: Make gcc (libatomic)
-        run: |
-          cd ${BUILD_DIR}/build-gcc
-          make all-target-libatomic -j$(nproc --all)
-          make install-strip-target-libatomic -j$(nproc --all)
+          make enable_shared=yes all-target -j$(nproc --all)
+          make install-strip-target -j$(nproc --all)
       - name: Merge directory
         run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
       - name: Upload
