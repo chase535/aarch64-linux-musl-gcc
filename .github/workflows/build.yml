@@ -20,7 +20,7 @@ env:
   GITHUB_EMAIL: "${{ secrets.EMAIL }}"
   GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
   HOME: "${{ github.workspace }}"
-  CLONE_DIR: "${{ github.workspace }}/git_clone"
+  PUSH_CLONE_DIR: "${{ github.workspace }}/push_git_clone"
   SOURCE_DIR: "${{ github.workspace }}/source"
   OUTPUT_DIR: "${{ github.workspace }}/output"
   BUILD_DIR: "${{ github.workspace }}/build"
@@ -449,19 +449,26 @@ jobs:
           make install-strip-target-libatomic -j$(nproc --all)
       - name: Merge directory
         run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
+      - name: Upload
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v6
+        with:
+          name: aarch64-linux-musl-gcc
+          path: ${{ env.MPREFIX }}/*
       - name: Push
+        if: ${{ github.event_name != 'pull_request' }}
         run: |
           git config --global user.name "${GITHUB_USER}"
           git config --global user.email "${GITHUB_EMAIL}"
-          git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${CLONE_DIR} -b main --depth=1
-          cd ${CLONE_DIR}
+          git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${PUSH_CLONE_DIR} -b main --depth=1
+          cd ${PUSH_CLONE_DIR}
           git checkout --orphan new
           OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
           [ -n "${OLD_FILES}" ] && rm -rf ${OLD_FILES}
-          cp -avf ${MPREFIX}/* ${CLONE_DIR}
-          chmod -R 0777 ${CLONE_DIR}
+          cp -avf ${MPREFIX}/* ${PUSH_CLONE_DIR}
+          chmod -R 0777 ${PUSH_CLONE_DIR}
           git branch -D main
           git branch -m main
           git add . -f
-          git commit -as -m "$(${CLONE_DIR}/bin/aarch64-linux-musl-gcc --version)"
+          git commit -as -m "$(${PUSH_CLONE_DIR}/bin/aarch64-linux-musl-gcc --version)"
           git push -f origin main
