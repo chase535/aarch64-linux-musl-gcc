@@ -2,11 +2,11 @@ name: Build
 
 on:
   workflow_dispatch:
-  # push:
-  #   branches:
-  #     - 'main'
-  #   paths:
-  #     - '.github/workflows/build.yml'
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/build.yml'
   pull_request:
     branches:
       - 'main'
@@ -15,43 +15,50 @@ on:
   schedule:
     - cron: '0 1 * * 1'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
-  GITHUB_USER: "${{ secrets.USERNAME }}"
-  GITHUB_EMAIL: "${{ secrets.EMAIL }}"
-  GITHUB_TOKEN: "${{ secrets.API_TOKEN_GITHUB }}"
-  HOME: "${{ github.workspace }}"
   PUSH_CLONE_DIR: "${{ github.workspace }}/push_git_clone"
   SOURCE_DIR: "${{ github.workspace }}/source"
   OUTPUT_DIR: "${{ github.workspace }}/output"
   BUILD_DIR: "${{ github.workspace }}/build"
   WGET_DIR: "${{ github.workspace }}/wget"
   MPREFIX: "${{ github.workspace }}/output/toolchain"
-  MSYSROOT: "${{ github.workspace }}/output/sysroot"
+  MSYSROOT: "${{ github.workspace }}/output/toolchain/aarch64-linux-musl/sysroot"
+  CACHE_VERSION: "ubuntu-22.04-v1"
   CFLAGS: "-g0 -O2"
   CXXFLAGS: "-g0 -O2"
   LDFLAGS: "-g0 -O2 -Wl,-O2,--hash-style=both"
 
 defaults:
   run:
-    shell: bash
+    shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
   delete-old-workflow-runs:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: write
+      contents: read
     steps:
       - name: Delete old workflow runs
         if: ${{ github.event_name != 'pull_request' }}
-        uses: Mattraks/delete-workflow-runs@v2
+        uses: Mattraks/delete-workflow-runs@0cf693bc9909e5e867ee8f27b813224ba862939c # v2.1.0
         with:
-          token: ${{ secrets.API_TOKEN_GITHUB }}
+          token: ${{ github.token }}
           repository: ${{ github.repository }}
-          retain_days: 0
-          keep_minimum_runs: 0
+          retain_days: 30
+          keep_minimum_runs: 6
           delete_workflow_pattern: 'Build'
 
   make-headers:
     name: make-${{ matrix.select }}-headers
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     outputs:
       LINUX_COMMIT_ID: ${{ steps.commit_id.outputs.LINUX_COMMIT_ID }}
       MUSL_COMMIT_ID: ${{ steps.commit_id.outputs.MUSL_COMMIT_ID }}
@@ -65,26 +72,28 @@ jobs:
           - linux
           - musl
     steps:
-      - name: Wget html file
-        run: |
-          if [[ "${SELECT}" == "linux" ]]; then
-            wget -P ${HOME} -O "${SELECT}.html" https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/commit
-          elif [[ "${SELECT}" == "musl" ]]; then
-            wget -P ${HOME} -O "${SELECT}.html" https://git.musl-libc.org/cgit/musl/commit
-          fi
       - name: Get latest git commit id
         id: commit_id
         run: |
-          HEADERS_HASH=$(grep '<th>commit</th>' ${HOME}/${SELECT}.html | awk '{if (match ($0, /[0-9a-f]{40}/)) {print substr ($0, RSTART, RLENGTH)}}')
+          if [[ "${SELECT}" == "linux" ]]; then
+            SOURCE_URL="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
+          elif [[ "${SELECT}" == "musl" ]]; then
+            SOURCE_URL="https://git.musl-libc.org/git/musl"
+          fi
+          HEADERS_HASH=$(git ls-remote "${SOURCE_URL}" refs/heads/master | awk '{print $1}')
+          if [[ ! "${HEADERS_HASH}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid ${SELECT} commit id: ${HEADERS_HASH}" >&2
+            exit 1
+          fi
           echo "${HEADERS_HASH}"
           echo "${SELECT^^}_COMMIT_ID=${HEADERS_HASH}" >> ${GITHUB_OUTPUT}
           echo "HEADERS_HASH=${HEADERS_HASH}" >> ${GITHUB_ENV}
       - name: Cache ${{ matrix.select }} headers
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
-          key: ${{ env.SELECT }}-headers-${{ env.HEADERS_HASH }}
+          key: ${{ env.CACHE_VERSION }}-${{ env.SELECT }}-headers-${{ env.HEADERS_HASH }}
       - name: Skip build
         if: ${{ steps.headers-cache.outputs.cache-hit == 'true' }}
         run: exit 0
@@ -100,10 +109,14 @@ jobs:
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
         run: |
           if [[ "${SELECT}" == "linux" ]]; then
-            git clone git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux ${SOURCE_DIR}/${SELECT} -b master --depth=1
+            SOURCE_URL="https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git"
           elif [[ "${SELECT}" == "musl" ]]; then
-            git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/${SELECT} -b master --depth=1
+            SOURCE_URL="https://git.musl-libc.org/git/musl"
           fi
+          git init ${SOURCE_DIR}/${SELECT}
+          git -C ${SOURCE_DIR}/${SELECT} remote add origin "${SOURCE_URL}"
+          git -C ${SOURCE_DIR}/${SELECT} fetch --depth=1 origin "${HEADERS_HASH}"
+          git -C ${SOURCE_DIR}/${SELECT} checkout --detach FETCH_HEAD
       - name: Make ${{ matrix.select }} headers
         if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
         run: |
@@ -116,27 +129,35 @@ jobs:
           fi
 
   build-gmp:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GMP_VERSION: "0.0.0"
     outputs:
       GMP_VERSION: ${{ steps.version.outputs.GMP_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "gmp.html" "https://ftp.gnu.org/gnu/gmp/?C=M;O=D"
+        run: wget -O "${RUNNER_TEMP}/gmp.html" "https://ftp.gnu.org/gnu/gmp/?C=M;O=D"
       - name: Get latest gmp version
         id: version
         run: |
-          GMP_VERSION=$(grep -m 1 '>gmp-.*\.tar\.xz<' ${HOME}/gmp.html | awk '{match($0, />gmp-[\.0-9]*\</); print substr($0, RSTART+5, RLENGTH-6)}')
+          GMP_VERSION=""
+          GMP_LINE=$(grep -E -m 1 'href="gmp-[0-9.]+\.tar\.xz"' "${RUNNER_TEMP}/gmp.html")
+          if [[ "${GMP_LINE}" =~ href=\"gmp-([0-9]+(\.[0-9]+)+)\.tar\.xz\" ]]; then
+            GMP_VERSION="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "${GMP_VERSION}" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "Invalid GMP version: ${GMP_VERSION}" >&2
+            exit 1
+          fi
           echo "${GMP_VERSION}"
-          echo "GMP_VERSION=${GMP_VERSION}" >> ${GITHUB_OUTPUT}
-          echo "GMP_VERSION=${GMP_VERSION}" >> ${GITHUB_ENV}
+          echo "GMP_VERSION=${GMP_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "GMP_VERSION=${GMP_VERSION}" >> "${GITHUB_ENV}"
       - name: Cache gmp
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
-          key: gmp-${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_VERSION }}
       - name: Skip build
         if: ${{ steps.gmp-cache.outputs.cache-hit == 'true' }}
         run: exit 0
@@ -163,7 +184,7 @@ jobs:
 
   build-isl:
     needs: [ build-gmp ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GMP_VERSION: ${{ needs.build-gmp.outputs.GMP_VERSION }}
       ISL_VERSION: "0.0.0"
@@ -171,30 +192,38 @@ jobs:
       ISL_VERSION: ${{ steps.version.outputs.ISL_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "isl.html" "https://libisl.sourceforge.io/?C=M;O=D"
+        run: wget -O "${RUNNER_TEMP}/isl.html" "https://libisl.sourceforge.io/?C=M;O=D"
       - name: Get latest isl version
         id: version
         run: |
-          ISL_VERSION=$(grep -m 1 '>isl-.*\.tar\.gz<' ${HOME}/isl.html | awk '{match($0, />isl-[\.0-9]*\</); print substr($0, RSTART+5, RLENGTH-6)}')
+          ISL_VERSION=""
+          ISL_LINE=$(grep -E -m 1 'href="isl-[0-9.]+\.tar\.gz"' "${RUNNER_TEMP}/isl.html")
+          if [[ "${ISL_LINE}" =~ href=\"isl-([0-9]+(\.[0-9]+)+)\.tar\.gz\" ]]; then
+            ISL_VERSION="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "${ISL_VERSION}" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "Invalid ISL version: ${ISL_VERSION}" >&2
+            exit 1
+          fi
           echo "${ISL_VERSION}"
-          echo "ISL_VERSION=${ISL_VERSION}" >> ${GITHUB_OUTPUT}
-          echo "ISL_VERSION=${ISL_VERSION}" >> ${GITHUB_ENV}
+          echo "ISL_VERSION=${ISL_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "ISL_VERSION=${ISL_VERSION}" >> "${GITHUB_ENV}"
       - name: Cache isl
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
-          key: isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Skip build
         if: ${{ steps.isl-cache.outputs.cache-hit == 'true' }}
         run: exit 0
       - name: Cache gmp
         if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
-          key: gmp-${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_VERSION }}
       - name: Install tools
         if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
         run: |
@@ -218,7 +247,7 @@ jobs:
 
   build-mpfr:
     needs: [ build-gmp ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GMP_VERSION: ${{ needs.build-gmp.outputs.GMP_VERSION }}
       MPFR_VERSION: "0.0.0"
@@ -226,30 +255,38 @@ jobs:
       MPFR_VERSION: ${{ steps.version.outputs.MPFR_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "mpfr.html" "https://ftp.gnu.org/gnu/mpfr/?C=M;O=D"
+        run: wget -O "${RUNNER_TEMP}/mpfr.html" "https://ftp.gnu.org/gnu/mpfr/?C=M;O=D"
       - name: Get latest mpfr version
         id: version
         run: |
-          MPFR_VERSION=$(grep -m 1 '>mpfr-.*\.tar\.gz<' ${HOME}/mpfr.html | awk '{match($0, />mpfr-[\.0-9]*\</); print substr($0, RSTART+6, RLENGTH-7)}')
+          MPFR_VERSION=""
+          MPFR_LINE=$(grep -E -m 1 'href="mpfr-[0-9.]+\.tar\.gz"' "${RUNNER_TEMP}/mpfr.html")
+          if [[ "${MPFR_LINE}" =~ href=\"mpfr-([0-9]+(\.[0-9]+)+)\.tar\.gz\" ]]; then
+            MPFR_VERSION="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "${MPFR_VERSION}" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "Invalid MPFR version: ${MPFR_VERSION}" >&2
+            exit 1
+          fi
           echo "${MPFR_VERSION}"
-          echo "MPFR_VERSION=${MPFR_VERSION}" >> ${GITHUB_OUTPUT}
-          echo "MPFR_VERSION=${MPFR_VERSION}" >> ${GITHUB_ENV}
+          echo "MPFR_VERSION=${MPFR_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "MPFR_VERSION=${MPFR_VERSION}" >> "${GITHUB_ENV}"
       - name: Cache mpfr
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
-          key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Skip build
         if: ${{ steps.mpfr-cache.outputs.cache-hit == 'true' }}
         run: exit 0
       - name: Cache gmp
         if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
-          key: gmp-${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_VERSION }}
       - name: Install tools
         if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
         run: |
@@ -273,7 +310,7 @@ jobs:
 
   build-mpc:
     needs: [ build-gmp, build-mpfr ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     env:
       GMP_VERSION: ${{ needs.build-gmp.outputs.GMP_VERSION }}
       MPFR_VERSION: ${{ needs.build-mpfr.outputs.MPFR_VERSION }}
@@ -282,37 +319,45 @@ jobs:
       MPC_VERSION: ${{ steps.version.outputs.MPC_VERSION }}
     steps:
       - name: Wget html file
-        run: wget -P ${HOME} -O "mpc.html" "https://ftp.gnu.org/gnu/mpc/?C=M;O=D"
+        run: wget -O "${RUNNER_TEMP}/mpc.html" "https://ftp.gnu.org/gnu/mpc/?C=M;O=D"
       - name: Get latest mpc version
         id: version
         run: |
-          MPC_VERSION=$(grep -m 1 '>mpc-.*\.tar\.gz<' ${HOME}/mpc.html | awk '{match($0, />mpc-[\.0-9]*\</); print substr($0, RSTART+5, RLENGTH-6)}')
+          MPC_VERSION=""
+          MPC_LINE=$(grep -E -m 1 'href="mpc-[0-9.]+\.tar\.gz"' "${RUNNER_TEMP}/mpc.html")
+          if [[ "${MPC_LINE}" =~ href=\"mpc-([0-9]+(\.[0-9]+)+)\.tar\.gz\" ]]; then
+            MPC_VERSION="${BASH_REMATCH[1]}"
+          fi
+          if [[ ! "${MPC_VERSION}" =~ ^[0-9]+(\.[0-9]+)+$ ]]; then
+            echo "Invalid MPC version: ${MPC_VERSION}" >&2
+            exit 1
+          fi
           echo "${MPC_VERSION}"
-          echo "MPC_VERSION=${MPC_VERSION}" >> ${GITHUB_OUTPUT}
-          echo "MPC_VERSION=${MPC_VERSION}" >> ${GITHUB_ENV}
+          echo "MPC_VERSION=${MPC_VERSION}" >> "${GITHUB_OUTPUT}"
+          echo "MPC_VERSION=${MPC_VERSION}" >> "${GITHUB_ENV}"
       - name: Cache mpc
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
-          key: mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
       - name: Skip build
         if: ${{ steps.mpc-cache.outputs.cache-hit == 'true' }}
         run: exit 0
       - name: Cache gmp
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
-          key: gmp-${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_VERSION }}
       - name: Cache mpfr
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
-          key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Install tools
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
         run: |
@@ -336,7 +381,9 @@ jobs:
 
   build-gcc-and-push:
     needs: [ make-headers, build-gmp, build-isl, build-mpfr, build-mpc ]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
     env:
       LINUX_COMMIT_ID: ${{ needs.make-headers.outputs.LINUX_COMMIT_ID }}
       MUSL_COMMIT_ID: ${{ needs.make-headers.outputs.MUSL_COMMIT_ID }}
@@ -356,47 +403,47 @@ jobs:
       - name: Create directory
         run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
       - name: Cache linux headers
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: linux-headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
-          key: linux-headers-${{ env.LINUX_COMMIT_ID }}
+          key: ${{ env.CACHE_VERSION }}-linux-headers-${{ env.LINUX_COMMIT_ID }}
       - name: Cache musl headers
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: musl-headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
-          key: musl-headers-${{ env.MUSL_COMMIT_ID }}
+          key: ${{ env.CACHE_VERSION }}-musl-headers-${{ env.MUSL_COMMIT_ID }}
       - name: Cache gmp
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
-          key: gmp-${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_VERSION }}
       - name: Cache isl
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
-          key: isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Cache mpfr
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
-          key: mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_VERSION }}-gmp${{ env.GMP_VERSION }}
       - name: Cache mpc
-        uses: actions/cache@v5
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
-          key: mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
+          key: ${{ env.CACHE_VERSION }}-mpc-${{ env.MPC_VERSION }}-gmp${{ env.GMP_VERSION }}-mpfr${{ env.MPFR_VERSION }}
       - name: Clone binutils
-        run: git clone git://sourceware.org/git/binutils-gdb ${SOURCE_DIR}/binutils -b master --depth=1
+        run: git clone https://sourceware.org/git/binutils-gdb.git ${SOURCE_DIR}/binutils -b master --depth=1
       - name: Clone gcc
-        run: git clone git://gcc.gnu.org/git/gcc ${SOURCE_DIR}/gcc -b master --depth=1
+        run: git clone https://gcc.gnu.org/git/gcc.git ${SOURCE_DIR}/gcc -b master --depth=1
       - name: Clone musl
-        run: git clone git://git.musl-libc.org/musl ${SOURCE_DIR}/musl -b master --depth=1
+        run: git clone https://git.musl-libc.org/git/musl ${SOURCE_DIR}/musl -b master --depth=1
       - name: Configure binutils
         run: |
           cd ${BUILD_DIR}/build-binutils
@@ -442,28 +489,85 @@ jobs:
           make -C aarch64-linux-musl/libgcc distclean -j$(nproc --all)
           make enable_shared=yes all-target -j$(nproc --all)
           make install-strip-target -j$(nproc --all)
-      - name: Merge directory
-        run: cp -avf ${MSYSROOT}/lib ${MSYSROOT}/usr/* ${MPREFIX}/aarch64-linux-musl
+      - name: Verify host compatibility
+        run: |
+          MAX_GLIBC_VERSION=$(
+            find "${MPREFIX}/bin" "${MPREFIX}/libexec" -type f -perm -0100 -print0 |
+              while IFS= read -r -d '' EXECUTABLE; do
+                if file "${EXECUTABLE}" | grep 'ELF 64-bit.*x86-64' > /dev/null; then
+                  objdump -T "${EXECUTABLE}" |
+                    sed -n 's/.*(GLIBC_\([^)]*\)).*/\1/p'
+                fi
+              done |
+              sort -V |
+              tail -1
+          )
+          if [[ -z "${MAX_GLIBC_VERSION}" ]]; then
+            echo "Unable to determine the required GLIBC version" >&2
+            exit 1
+          fi
+          echo "Maximum required GLIBC version: ${MAX_GLIBC_VERSION}"
+          if dpkg --compare-versions "${MAX_GLIBC_VERSION}" gt "2.35"; then
+            echo "The toolchain requires GLIBC ${MAX_GLIBC_VERSION}, newer than Ubuntu 22.04 provides" >&2
+            exit 1
+          fi
+      - name: Verify relocatable toolchain
+        run: |
+          RELOCATED_DIR="${GITHUB_WORKSPACE}/relocated-toolchain"
+          SMOKE_DIR="${GITHUB_WORKSPACE}/smoke-test"
+          mv "${MPREFIX}" "${RELOCATED_DIR}"
+          mkdir -p "${SMOKE_DIR}"
+
+          CC="${RELOCATED_DIR}/bin/aarch64-linux-musl-gcc"
+          CXX="${RELOCATED_DIR}/bin/aarch64-linux-musl-g++"
+          EXPECTED_SYSROOT=$(realpath "${RELOCATED_DIR}/aarch64-linux-musl/sysroot")
+          ACTUAL_SYSROOT=$(realpath "$("${CC}" -print-sysroot)")
+          if [[ "${ACTUAL_SYSROOT}" != "${EXPECTED_SYSROOT}" ]]; then
+            echo "Unexpected sysroot: ${ACTUAL_SYSROOT}" >&2
+            echo "Expected sysroot: ${EXPECTED_SYSROOT}" >&2
+            exit 1
+          fi
+
+          printf '#include <stdio.h>\nint main(void) { puts("ok"); return 0; }\n' > "${SMOKE_DIR}/hello.c"
+          printf '#include <iostream>\nint main() { std::cout << "ok"; }\n' > "${SMOKE_DIR}/hello.cpp"
+          "${CC}" "${SMOKE_DIR}/hello.c" -o "${SMOKE_DIR}/hello-c"
+          "${CXX}" "${SMOKE_DIR}/hello.cpp" -o "${SMOKE_DIR}/hello-cpp"
+
+          file "${SMOKE_DIR}/hello-c" | grep 'ARM aarch64' > /dev/null
+          file "${SMOKE_DIR}/hello-cpp" | grep 'ARM aarch64' > /dev/null
+          readelf -l "${SMOKE_DIR}/hello-c" | grep '/lib/ld-musl-aarch64.so.1' > /dev/null
+          readelf -l "${SMOKE_DIR}/hello-cpp" | grep '/lib/ld-musl-aarch64.so.1' > /dev/null
+
+          mv "${RELOCATED_DIR}" "${MPREFIX}"
       - name: Upload
         if: ${{ github.event_name == 'pull_request' }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: aarch64-linux-musl-gcc
           path: ${{ env.MPREFIX }}/*
+      - name: Checkout publication branch
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        with:
+          ref: main
+          path: push_git_clone
+          fetch-depth: 1
       - name: Push
         if: ${{ github.event_name != 'pull_request' }}
         run: |
-          git config --global user.name "${GITHUB_USER}"
-          git config --global user.email "${GITHUB_EMAIL}"
-          git clone https://"${GITHUB_USER}":"${GITHUB_TOKEN}"@github.com/chase535/aarch64-linux-musl-gcc ${PUSH_CLONE_DIR} -b main --depth=1
-          cd ${PUSH_CLONE_DIR}
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cd "${PUSH_CLONE_DIR}"
           git checkout --orphan new
-          OLD_FILES=`find . -maxdepth 1 -not \( -type d -name "." -o -type d -name ".git" -o -type d -name ".github" -o -type f -name "README.md" \)`
-          [ -n "${OLD_FILES}" ] && rm -rf ${OLD_FILES}
-          cp -avf ${MPREFIX}/* ${PUSH_CLONE_DIR}
-          chmod -R 0777 ${PUSH_CLONE_DIR}
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name ".git" \
+            ! -name ".github" \
+            ! -name "README.md" \
+            -exec rm -rf -- {} +
+          cp -avf "${MPREFIX}/." "${PUSH_CLONE_DIR}"
+          chmod 0644 README.md .github/workflows/build.yml
           git branch -D main
           git branch -m main
-          git add . -f
-          git commit -as -m "$(${PUSH_CLONE_DIR}/bin/aarch64-linux-musl-gcc --version)"
-          git push -f origin main
+          git add --all --force
+          git commit -s -m "$("${PUSH_CLONE_DIR}/bin/aarch64-linux-musl-gcc" --version)"
+          git push --force origin main
