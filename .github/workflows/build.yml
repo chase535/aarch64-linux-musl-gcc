@@ -89,7 +89,6 @@ jobs:
           docker image inspect "${ALPINE_IMAGE}" >/dev/null
 
   delete-old-workflow-runs:
-    needs: [ prepare-build-container ]
     runs-on: ubuntu-latest
     permissions:
       actions: write
