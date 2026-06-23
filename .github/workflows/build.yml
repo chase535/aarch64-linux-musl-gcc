@@ -6,6 +6,7 @@ on:
     branches:
       - 'main'
     paths:
+      - '.github/dejagnu/**'
       - '.github/workflows/build.yml'
       - '.github/patches/**'
       - '.github/scripts/**'
@@ -13,6 +14,7 @@ on:
     branches:
       - 'main'
     paths:
+      - '.github/dejagnu/**'
       - '.github/workflows/build.yml'
       - '.github/patches/**'
       - '.github/scripts/**'
@@ -149,12 +151,15 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
-      - name: Skip build
+      - name: Skip build and check
         if: ${{ steps.gmp-cache.outputs.cache-hit == 'true' }}
         run: echo "GMP ${GMP_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/gmp.log"
-      - name: Make gmp
+      - name: Build GMP
         if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
-        run: bash .github/scripts/run-in-alpine.sh gmp
+        run: bash .github/scripts/run-in-alpine.sh gmp-build
+      - name: Check GMP
+        if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh gmp-check
       - name: Upload gmp logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -199,7 +204,7 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
           key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
-      - name: Skip build
+      - name: Skip build and check
         if: ${{ steps.isl-cache.outputs.cache-hit == 'true' }}
         run: echo "ISL ${ISL_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/isl.log"
       - name: Cache gmp
@@ -209,9 +214,12 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
-      - name: Make isl
+      - name: Build ISL
         if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
-        run: bash .github/scripts/run-in-alpine.sh isl
+        run: bash .github/scripts/run-in-alpine.sh isl-build
+      - name: Check ISL
+        if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh isl-check
       - name: Upload isl logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -256,7 +264,7 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
           key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
-      - name: Skip build
+      - name: Skip build and check
         if: ${{ steps.mpfr-cache.outputs.cache-hit == 'true' }}
         run: echo "MPFR ${MPFR_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/mpfr.log"
       - name: Cache gmp
@@ -266,9 +274,12 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
-      - name: Make mpfr
+      - name: Build MPFR
         if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
-        run: bash .github/scripts/run-in-alpine.sh mpfr
+        run: bash .github/scripts/run-in-alpine.sh mpfr-build
+      - name: Check MPFR
+        if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh mpfr-check
       - name: Upload mpfr logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -314,7 +325,7 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
           key: ${{ env.CACHE_VERSION }}-mpc-${{ env.MPC_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}-mpfr${{ env.MPFR_COMMIT_ID }}
-      - name: Skip build
+      - name: Skip build and check
         if: ${{ steps.mpc-cache.outputs.cache-hit == 'true' }}
         run: echo "MPC ${MPC_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/mpc.log"
       - name: Cache gmp
@@ -331,9 +342,12 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
           key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
-      - name: Make mpc
+      - name: Build MPC
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        run: bash .github/scripts/run-in-alpine.sh mpc
+        run: bash .github/scripts/run-in-alpine.sh mpc-build
+      - name: Check MPC
+        if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh mpc-check
       - name: Upload mpc logs
         if: ${{ always() }}
         uses: actions/upload-artifact@v7
@@ -403,8 +417,16 @@ jobs:
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
           key: ${{ env.CACHE_VERSION }}-mpc-${{ env.MPC_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}-mpfr${{ env.MPFR_COMMIT_ID }}
-      - name: Build and verify static musl-hosted toolchain
-        run: bash .github/scripts/run-in-alpine.sh toolchain
+      - name: Build static musl-hosted toolchain
+        run: bash .github/scripts/run-in-alpine.sh toolchain-build
+      - name: Check binutils
+        run: bash .github/scripts/run-in-alpine.sh binutils-check
+      - name: Check GCC
+        run: bash .github/scripts/run-in-alpine.sh gcc-check
+      - name: Check musl
+        run: bash .github/scripts/run-in-alpine.sh musl-check
+      - name: Verify toolchain
+        run: bash .github/scripts/run-in-alpine.sh toolchain-verify
       - name: Upload
         if: ${{ github.event_name == 'pull_request' }}
         uses: actions/upload-artifact@v7

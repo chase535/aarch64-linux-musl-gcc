@@ -40,19 +40,19 @@ case "${MODE}" in
             exit 1
         fi
         ;;
-    gmp)
+    gmp-build | gmp-check)
         MODE_ENV_VARS=(GMP_REPOSITORY GMP_COMMIT_ID)
         ;;
-    isl)
+    isl-build | isl-check)
         MODE_ENV_VARS=(ISL_REPOSITORY ISL_COMMIT_ID)
         ;;
-    mpfr)
+    mpfr-build | mpfr-check)
         MODE_ENV_VARS=(MPFR_REPOSITORY MPFR_COMMIT_ID)
         ;;
-    mpc)
+    mpc-build | mpc-check)
         MODE_ENV_VARS=(MPC_REPOSITORY MPC_COMMIT_ID)
         ;;
-    toolchain)
+    toolchain-build | binutils-check | gcc-check | musl-check | toolchain-verify)
         ;;
     *)
         echo "Unsupported build mode: ${MODE}" >&2
@@ -163,6 +163,6 @@ if ((status != 0)); then
     annotation="${annotation//'%'/'%25'}"
     annotation="${annotation//$'\r'/'%0D'}"
     annotation="${annotation//$'\n'/'%0A'}"
-    echo "::error title=Alpine ${MODE} build failed::${annotation}"
+    echo "::error title=Alpine ${MODE} failed::${annotation}"
     exit "${status}"
 fi

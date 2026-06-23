@@ -224,7 +224,6 @@ build_gmp() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
-    run_make_check gmp-check.log
     make install -j"${JOBS}"
     require_installed_headers "${OUTPUT_DIR}/gmp/include" gmp.h gmpxx.h
     verify_header_compilation \
@@ -232,6 +231,12 @@ build_gmp() {
         c++ \
         $'#include <gmp.h>\n#include <gmpxx.h>\nint main() { mpz_class value; return 0; }' \
         -I"${OUTPUT_DIR}/gmp/include"
+}
+
+check_gmp() {
+    exec > >(tee "${LOG_DIR}/gmp-check-driver.log") 2>&1
+    cd "${BUILD_DIR}/build-gmp"
+    run_make_check gmp-check.log
 }
 
 build_isl() {
@@ -257,7 +262,6 @@ build_isl() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
-    run_make_check isl-check.log
     make install -j"${JOBS}"
     install_missing_include_files \
         "${SOURCE_DIR}/isl/include/isl" \
@@ -269,6 +273,12 @@ build_isl() {
         $'#include <isl/id_set.h>\n#include <isl/map_to_basic_set.h>\nint main(void) { return 0; }' \
         -I"${OUTPUT_DIR}/isl/include" \
         -I"${OUTPUT_DIR}/gmp/include"
+}
+
+check_isl() {
+    exec > >(tee "${LOG_DIR}/isl-check-driver.log") 2>&1
+    cd "${BUILD_DIR}/build-isl"
+    run_make_check isl-check.log
 }
 
 build_mpfr() {
@@ -292,7 +302,6 @@ build_mpfr() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
-    run_make_check mpfr-check.log
     make install -j"${JOBS}"
     require_installed_headers "${OUTPUT_DIR}/mpfr/include" mpfr.h mpf2mpfr.h
     verify_header_compilation \
@@ -301,6 +310,12 @@ build_mpfr() {
         $'#include <mpfr.h>\n#include <mpf2mpfr.h>\nint main(void) { return 0; }' \
         -I"${OUTPUT_DIR}/mpfr/include" \
         -I"${OUTPUT_DIR}/gmp/include"
+}
+
+check_mpfr() {
+    exec > >(tee "${LOG_DIR}/mpfr-check-driver.log") 2>&1
+    cd "${BUILD_DIR}/build-mpfr"
+    run_make_check mpfr-check.log
 }
 
 build_mpc() {
@@ -325,7 +340,6 @@ build_mpc() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
-    run_make_check mpc-check.log
     make install -j"${JOBS}"
     require_installed_headers "${OUTPUT_DIR}/mpc/include" mpc.h
     verify_header_compilation \
@@ -335,6 +349,12 @@ build_mpc() {
         -I"${OUTPUT_DIR}/mpc/include" \
         -I"${OUTPUT_DIR}/mpfr/include" \
         -I"${OUTPUT_DIR}/gmp/include"
+}
+
+check_mpc() {
+    exec > >(tee "${LOG_DIR}/mpc-check-driver.log") 2>&1
+    cd "${BUILD_DIR}/build-mpc"
+    run_make_check mpc-check.log
 }
 
 clone_toolchain_sources() {
@@ -579,19 +599,6 @@ EOF
     fi
 }
 
-run_toolchain_checks() {
-    local status=0
-
-    check_binutils || status=1
-    check_gcc || status=1
-    check_musl || status=1
-
-    if ((status != 0)); then
-        echo "One or more toolchain checks failed" >&2
-    fi
-    return "${status}"
-}
-
 verify_static_host() {
     local count=0
     local executable
@@ -700,6 +707,10 @@ verify_relocatable_toolchain() {
     mv "${relocated_dir}" "${MPREFIX}"
 }
 
+prepare_toolchain_path() {
+    export PATH="${MPREFIX}/bin:${PATH}"
+}
+
 build_toolchain() {
     local headers_backup="${BUILD_DIR}/cached-target-headers"
 
@@ -725,7 +736,7 @@ build_toolchain() {
     if [[ -d "${headers_backup}/include" ]]; then
         cp -a "${headers_backup}/include/." "${MSYSROOT}/usr/include/"
     fi
-    export PATH="${MPREFIX}/bin:${PATH}"
+    prepare_toolchain_path
 
     clone_toolchain_sources
     configure_binutils
@@ -735,7 +746,10 @@ build_toolchain() {
     build_static_libgcc
     build_musl
     build_target_libraries
-    run_toolchain_checks
+}
+
+verify_toolchain() {
+    prepare_toolchain_path
     verify_static_host
     verify_relocatable_toolchain
 }
@@ -747,24 +761,51 @@ case "${MODE}" in
             "${3:?header repository is required}" \
             "${4:?header commit id is required}"
         ;;
-    gmp)
+    gmp-build)
         require_env GMP_REPOSITORY GMP_COMMIT_ID
         build_gmp
         ;;
-    isl)
+    gmp-check)
+        check_gmp
+        ;;
+    isl-build)
         require_env ISL_REPOSITORY ISL_COMMIT_ID
         build_isl
         ;;
-    mpfr)
+    isl-check)
+        check_isl
+        ;;
+    mpfr-build)
         require_env MPFR_REPOSITORY MPFR_COMMIT_ID
         build_mpfr
         ;;
-    mpc)
+    mpfr-check)
+        check_mpfr
+        ;;
+    mpc-build)
         require_env MPC_REPOSITORY MPC_COMMIT_ID
         build_mpc
         ;;
-    toolchain)
+    mpc-check)
+        check_mpc
+        ;;
+    toolchain-build)
         build_toolchain
+        ;;
+    binutils-check)
+        prepare_toolchain_path
+        check_binutils
+        ;;
+    gcc-check)
+        prepare_toolchain_path
+        check_gcc
+        ;;
+    musl-check)
+        prepare_toolchain_path
+        check_musl
+        ;;
+    toolchain-verify)
+        verify_toolchain
         ;;
     *)
         echo "Unsupported build mode: ${MODE}" >&2
