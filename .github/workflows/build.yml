@@ -80,7 +80,7 @@ jobs:
           echo "value=${RUNNER_OS}-${BUILD_IMAGE_CACHE_VERSION}-${dockerfile_sha}-${base_image_id}" >> "${GITHUB_OUTPUT}"
       - name: Cache Alpine build image
         id: build-image-cache
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         with:
           path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
           key: ${{ steps.build-image-cache-key.outputs.value }}
@@ -160,7 +160,7 @@ jobs:
           echo "${HEADER_SOURCE^^}_COMMIT_ID=${HEADER_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
           echo "HEADER_COMMIT_ID=${HEADER_COMMIT_ID}" >> "${GITHUB_ENV}"
       - name: Cache ${{ matrix.source }} headers
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
@@ -212,7 +212,7 @@ jobs:
           echo "GMP_COMMIT_ID=${GMP_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
           echo "GMP_COMMIT_ID=${GMP_COMMIT_ID}" >> "${GITHUB_ENV}"
       - name: Cache gmp
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
@@ -271,7 +271,7 @@ jobs:
           echo "ISL_COMMIT_ID=${ISL_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
           echo "ISL_COMMIT_ID=${ISL_COMMIT_ID}" >> "${GITHUB_ENV}"
       - name: Cache isl
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
@@ -281,7 +281,7 @@ jobs:
         run: echo "ISL ${ISL_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/isl.log"
       - name: Cache gmp
         if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
@@ -337,7 +337,7 @@ jobs:
           echo "MPFR_COMMIT_ID=${MPFR_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
           echo "MPFR_COMMIT_ID=${MPFR_COMMIT_ID}" >> "${GITHUB_ENV}"
       - name: Cache mpfr
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
@@ -347,7 +347,7 @@ jobs:
         run: echo "MPFR ${MPFR_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/mpfr.log"
       - name: Cache gmp
         if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
@@ -404,7 +404,7 @@ jobs:
           echo "MPC_COMMIT_ID=${MPC_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
           echo "MPC_COMMIT_ID=${MPC_COMMIT_ID}" >> "${GITHUB_ENV}"
       - name: Cache mpc
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
@@ -414,14 +414,14 @@ jobs:
         run: echo "MPC ${MPC_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/mpc.log"
       - name: Cache gmp
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
       - name: Cache mpfr
         if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
@@ -472,37 +472,37 @@ jobs:
       - name: Create directory
         run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
       - name: Cache linux headers
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: linux-headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
           key: ${{ env.CACHE_VERSION }}-linux-headers-${{ env.LINUX_COMMIT_ID }}
       - name: Cache musl headers
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: musl-headers-cache
         with:
           path: ${{ env.MSYSROOT }}/usr/include
           key: ${{ env.CACHE_VERSION }}-musl-headers-${{ env.MUSL_COMMIT_ID }}
       - name: Cache gmp
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: gmp-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/gmp
           key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
       - name: Cache isl
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
           key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
       - name: Cache mpfr
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: mpfr-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpfr
           key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
       - name: Cache mpc
-        uses: actions/cache@v5
+        uses: actions/cache@v6
         id: mpc-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/mpc
