@@ -13,6 +13,16 @@ TARGET_CFLAGS="-g0 -O2"
 TARGET_CXXFLAGS="${TARGET_CFLAGS}"
 TARGET_LDFLAGS="-Wl,-O2,--hash-style=both"
 
+: "${GITHUB_WORKSPACE:?GITHUB_WORKSPACE is required}"
+: "${SOURCE_DIR:?SOURCE_DIR is required}"
+: "${OUTPUT_DIR:?OUTPUT_DIR is required}"
+: "${BUILD_DIR:?BUILD_DIR is required}"
+: "${LOG_DIR:?LOG_DIR is required}"
+: "${MPREFIX:?MPREFIX is required}"
+: "${MSYSROOT:?MSYSROOT is required}"
+: "${HOST_UID:?HOST_UID is required}"
+: "${HOST_GID:?HOST_GID is required}"
+
 require_env() {
     local name
 
@@ -23,17 +33,6 @@ require_env() {
         fi
     done
 }
-
-require_env \
-    GITHUB_WORKSPACE \
-    SOURCE_DIR \
-    OUTPUT_DIR \
-    BUILD_DIR \
-    LOG_DIR \
-    MPREFIX \
-    MSYSROOT \
-    HOST_UID \
-    HOST_GID
 
 fix_ownership() {
     local path
@@ -81,6 +80,73 @@ clone_source() {
         echo "Expected ${commit_id}, cloned ${actual_commit_id} from ${repository}" >&2
         exit 1
     fi
+}
+
+require_installed_headers() {
+    local include_dir="$1"
+    local header
+
+    shift
+    for header in "$@"; do
+        if [[ ! -f "${include_dir}/${header}" ]]; then
+            echo "Missing installed header: ${include_dir}/${header}" >&2
+            exit 1
+        fi
+    done
+}
+
+install_missing_include_files() {
+    local source_dir="$1"
+    local include_dir="$2"
+    local source_file
+    local relative_path
+
+    while IFS= read -r -d '' source_file; do
+        relative_path="${source_file#"${source_dir}"/}"
+        if [[ -f "${include_dir}/${relative_path}" ]]; then
+            continue
+        fi
+        install -Dm644 "${source_file}" "${include_dir}/${relative_path}"
+        echo "Installed missing public include file: ${relative_path}"
+    done < <(find "${source_dir}" -type f -print0)
+
+    while IFS= read -r -d '' source_file; do
+        relative_path="${source_file#"${source_dir}"/}"
+        if [[ ! -f "${include_dir}/${relative_path}" ]]; then
+            echo "Missing public include file after installation: ${relative_path}" >&2
+            exit 1
+        fi
+    done < <(find "${source_dir}" -type f -print0)
+}
+
+verify_prefixed_include_closure() {
+    local include_dir="$1"
+    local prefix="$2"
+    local dependency
+
+    while IFS= read -r dependency; do
+        if [[ ! -f "${include_dir}/${prefix}/${dependency}" ]]; then
+            echo "Missing ${prefix} include dependency: ${dependency}" >&2
+            exit 1
+        fi
+    done < <(
+        grep -RhoE \
+            "#[[:space:]]*include[[:space:]]*<${prefix}/[^>]+>" \
+            "${include_dir}/${prefix}" |
+            sed -E "s|.*<${prefix}/([^>]+)>.*|\\1|" |
+            sort -u ||
+            true
+    )
+}
+
+verify_header_compilation() {
+    local compiler="$1"
+    local language="$2"
+    local source="$3"
+
+    shift 3
+    printf '%s\n' "${source}" |
+        "${compiler}" -x "${language}" -fsyntax-only "$@" -
 }
 
 build_headers() {
@@ -141,22 +207,20 @@ build_gmp() {
         --host="${HOST}" \
         --prefix="${OUTPUT_DIR}/gmp" \
         --enable-maintainer-mode \
+        --enable-cxx \
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
     make install -j"${JOBS}"
+    require_installed_headers "${OUTPUT_DIR}/gmp/include" gmp.h gmpxx.h
+    verify_header_compilation \
+        g++ \
+        c++ \
+        $'#include <gmp.h>\n#include <gmpxx.h>\nint main() { mpz_class value; return 0; }' \
+        -I"${OUTPUT_DIR}/gmp/include"
 }
 
 build_isl() {
-    local header
-    local hash_headers=(
-        hbase.h
-        hbase_templ.c
-        hset.h
-        hset_templ.c
-        id_set.h
-    )
-
     exec > >(tee "${LOG_DIR}/isl.log") 2>&1
 
     rm -rf "${SOURCE_DIR:?}/isl" "${BUILD_DIR:?}/build-isl"
@@ -180,19 +244,16 @@ build_isl() {
         --enable-static
     make all -j"${JOBS}"
     make install -j"${JOBS}"
-
-    for header in "${hash_headers[@]}"; do
-        if [[ ! -f "${OUTPUT_DIR}/isl/include/isl/${header}" ]]; then
-            install -Dm644 \
-                "${SOURCE_DIR}/isl/include/isl/${header}" \
-                "${OUTPUT_DIR}/isl/include/isl/${header}"
-            echo "Installed missing ISL header: ${header}"
-        fi
-        if [[ ! -f "${OUTPUT_DIR}/isl/include/isl/${header}" ]]; then
-            echo "Missing required ISL header after installation: ${header}" >&2
-            exit 1
-        fi
-    done
+    install_missing_include_files \
+        "${SOURCE_DIR}/isl/include/isl" \
+        "${OUTPUT_DIR}/isl/include/isl"
+    verify_prefixed_include_closure "${OUTPUT_DIR}/isl/include" isl
+    verify_header_compilation \
+        gcc \
+        c \
+        $'#include <isl/id_set.h>\n#include <isl/map_to_basic_set.h>\nint main(void) { return 0; }' \
+        -I"${OUTPUT_DIR}/isl/include" \
+        -I"${OUTPUT_DIR}/gmp/include"
 }
 
 build_mpfr() {
@@ -217,6 +278,13 @@ build_mpfr() {
         --enable-static
     make all -j"${JOBS}"
     make install -j"${JOBS}"
+    require_installed_headers "${OUTPUT_DIR}/mpfr/include" mpfr.h mpf2mpfr.h
+    verify_header_compilation \
+        gcc \
+        c \
+        $'#include <mpfr.h>\n#include <mpf2mpfr.h>\nint main(void) { return 0; }' \
+        -I"${OUTPUT_DIR}/mpfr/include" \
+        -I"${OUTPUT_DIR}/gmp/include"
 }
 
 build_mpc() {
@@ -242,6 +310,14 @@ build_mpc() {
         --enable-static
     make all -j"${JOBS}"
     make install -j"${JOBS}"
+    require_installed_headers "${OUTPUT_DIR}/mpc/include" mpc.h
+    verify_header_compilation \
+        gcc \
+        c \
+        $'#include <mpc.h>\nint main(void) { return 0; }' \
+        -I"${OUTPUT_DIR}/mpc/include" \
+        -I"${OUTPUT_DIR}/mpfr/include" \
+        -I"${OUTPUT_DIR}/gmp/include"
 }
 
 clone_toolchain_sources() {

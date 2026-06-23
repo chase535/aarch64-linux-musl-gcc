@@ -35,8 +35,7 @@ env:
   MPREFIX: "${{ github.workspace }}/output/toolchain"
   MSYSROOT: "${{ github.workspace }}/output/toolchain/aarch64-linux-musl/sysroot"
   ALPINE_IMAGE: "alpine:3.24"
-  CACHE_VERSION: "alpine-3.24-static-musl-v2-git"
-  ISL_CACHE_VERSION: "install-hash-headers-v1"
+  CACHE_VERSION: "alpine-3.24-static-musl-v3-all-public-headers"
   GMP_REPOSITORY: "https://github.com/gmp-mirror/gmp.git"
   ISL_REPOSITORY: "https://repo.or.cz/isl.git"
   MPFR_REPOSITORY: "https://gitlab.inria.fr/mpfr/mpfr.git"
@@ -198,7 +197,7 @@ jobs:
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
-          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_CACHE_VERSION }}-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
       - name: Skip build
         if: ${{ steps.isl-cache.outputs.cache-hit == 'true' }}
         run: echo "ISL ${ISL_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/isl.log"
@@ -387,7 +386,7 @@ jobs:
         id: isl-cache
         with:
           path: ${{ env.OUTPUT_DIR }}/isl
-          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_CACHE_VERSION }}-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
       - name: Cache mpfr
         uses: actions/cache@v5
         id: mpfr-cache
