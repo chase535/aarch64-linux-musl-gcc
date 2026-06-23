@@ -1,0 +1,33 @@
+diff --git a/libgomp/affinity.c b/libgomp/affinity.c
+index 060fefbe54..1de5ec7f66 100644
+--- a/libgomp/affinity.c
++++ b/libgomp/affinity.c
+@@ -152,6 +152,7 @@ gomp_display_affinity_place (char *buffer, size_t size, size_t *ret,
+   gomp_display_string (buffer, size, ret, buf, strlen (buf));
+ }
+ 
++#ifndef GOMP_USE_LINUX_NUMA_AFFINITY
+ int
+ gomp_get_current_numa_node ()
+ {
+@@ -165,6 +166,7 @@ gomp_get_numa_distance (int node1, int node2)
+   (void) node2;
+   return -1;
+ }
++#endif
+ 
+ ialias(omp_get_place_num_procs)
+ ialias(omp_get_place_proc_ids)
+diff --git a/libgomp/config/linux/affinity.c b/libgomp/config/linux/affinity.c
+index ca14be9690..e6109519f1 100644
+--- a/libgomp/config/linux/affinity.c
++++ b/libgomp/config/linux/affinity.c
+@@ -623,6 +623,8 @@ ialias(omp_get_place_proc_ids)
+ 
+ #else
+ 
++#define GOMP_USE_LINUX_NUMA_AFFINITY
+ #include "../../affinity.c"
++#undef GOMP_USE_LINUX_NUMA_AFFINITY
+ 
+ #endif
