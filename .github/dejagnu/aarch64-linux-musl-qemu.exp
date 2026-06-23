@@ -1,0 +1,13 @@
+load_generic_config "unix"
+
+process_multilib_options ""
+
+if {![info exists env(GITHUB_WORKSPACE)] || $env(GITHUB_WORKSPACE) eq ""} {
+    error "GITHUB_WORKSPACE is required"
+}
+if {![info exists env(MSYSROOT)] || $env(MSYSROOT) eq ""} {
+    error "MSYSROOT is required"
+}
+
+set_board_info bmk,use_alarm 1
+set_board_info exec_shell "$env(GITHUB_WORKSPACE)/.github/scripts/run-aarch64-musl.sh"

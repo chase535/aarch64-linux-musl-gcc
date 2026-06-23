@@ -115,7 +115,9 @@ docker "${DOCKER_ARGS[@]}" \
             build-base \
             coreutils \
             curl \
+            dejagnu \
             diffutils \
+            expect \
             file \
             findutils \
             flex \
@@ -130,8 +132,10 @@ docker "${DOCKER_ARGS[@]}" \
             perl \
             pkgconf \
             python3 \
+            qemu-aarch64 \
             rsync \
             tar \
+            tcl \
             texinfo \
             xz \
             zlib-dev \

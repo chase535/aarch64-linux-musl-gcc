@@ -54,6 +54,19 @@ export LDFLAGS="${HOST_LDFLAGS}"
 export CFLAGS_FOR_TARGET="${TARGET_CFLAGS}"
 export CXXFLAGS_FOR_TARGET="${TARGET_CXXFLAGS}"
 export LDFLAGS_FOR_TARGET="${TARGET_LDFLAGS}"
+export DEJAGNU="${GITHUB_WORKSPACE}/.github/dejagnu/site.exp"
+
+run_make_check() {
+    local log_file="$1"
+    local status
+
+    shift
+    set +e
+    make -k check -j"${JOBS}" "$@" 2>&1 | tee "${LOG_DIR}/${log_file}"
+    status=${PIPESTATUS[0]}
+    set -e
+    return "${status}"
+}
 
 clone_source() {
     local repository="$1"
@@ -211,6 +224,7 @@ build_gmp() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
+    run_make_check gmp-check.log
     make install -j"${JOBS}"
     require_installed_headers "${OUTPUT_DIR}/gmp/include" gmp.h gmpxx.h
     verify_header_compilation \
@@ -243,6 +257,7 @@ build_isl() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
+    run_make_check isl-check.log
     make install -j"${JOBS}"
     install_missing_include_files \
         "${SOURCE_DIR}/isl/include/isl" \
@@ -277,6 +292,7 @@ build_mpfr() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
+    run_make_check mpfr-check.log
     make install -j"${JOBS}"
     require_installed_headers "${OUTPUT_DIR}/mpfr/include" mpfr.h mpf2mpfr.h
     verify_header_compilation \
@@ -309,6 +325,7 @@ build_mpc() {
         --disable-shared \
         --enable-static
     make all -j"${JOBS}"
+    run_make_check mpc-check.log
     make install -j"${JOBS}"
     require_installed_headers "${OUTPUT_DIR}/mpc/include" mpc.h
     verify_header_compilation \
@@ -324,6 +341,7 @@ clone_toolchain_sources() {
     rm -rf \
         "${SOURCE_DIR:?}/binutils" \
         "${SOURCE_DIR:?}/gcc" \
+        "${SOURCE_DIR:?}/libc-test" \
         "${SOURCE_DIR:?}/musl"
     git clone --branch master --depth=1 \
         https://sourceware.org/git/binutils-gdb.git \
@@ -349,10 +367,14 @@ clone_toolchain_sources() {
     git clone --branch master --depth=1 \
         https://git.musl-libc.org/git/musl \
         "${SOURCE_DIR}/musl"
+    git clone --branch master --depth=1 \
+        https://repo.or.cz/libc-test.git \
+        "${SOURCE_DIR}/libc-test"
 
     {
         echo "binutils $(git -C "${SOURCE_DIR}/binutils" rev-parse HEAD)"
         echo "gcc      $(git -C "${SOURCE_DIR}/gcc" rev-parse HEAD)"
+        echo "libc-test $(git -C "${SOURCE_DIR}/libc-test" rev-parse HEAD)"
         echo "musl     $(git -C "${SOURCE_DIR}/musl" rev-parse HEAD)"
         echo "host     $(gcc -dumpmachine)"
         echo "libc     $(ldd --version 2>&1 | head -1)"
@@ -481,6 +503,95 @@ build_target_libraries() {
     make install-strip-target -j"${JOBS}"
 }
 
+check_binutils() {
+    exec > >(tee "${LOG_DIR}/binutils-check-driver.log") 2>&1
+    cd "${BUILD_DIR}/build-binutils"
+    run_make_check \
+        binutils-check.log \
+        "RUNTESTFLAGS=--target_board=aarch64-linux-musl-qemu"
+}
+
+check_gcc() {
+    exec > >(tee "${LOG_DIR}/gcc-check-driver.log") 2>&1
+    cd "${BUILD_DIR}/build-gcc"
+    run_make_check \
+        gcc-check.log \
+        "RUNTESTFLAGS=--target_board=aarch64-linux-musl-qemu"
+}
+
+check_musl() {
+    local artifact_root="${BUILD_DIR}/build-libc-test"
+    local build_root="${SOURCE_DIR}/libc-test/src"
+    local failure_count
+    local report="${artifact_root}/REPORT"
+    local test_suite
+    local test_targets=()
+
+    exec > >(tee "${LOG_DIR}/musl-check.log") 2>&1
+    rm -rf "${artifact_root:?}"
+    mkdir -p "${artifact_root}"
+
+    cat > "${SOURCE_DIR}/libc-test/config.mak" <<EOF
+CROSS_COMPILE = ${TARGET}-
+CC = ${TARGET}-gcc
+CFLAGS += -pipe -std=c99 -D_POSIX_C_SOURCE=200809L -Wall
+CFLAGS += -Wno-unused-function -Wno-missing-braces -Wno-unused -Wno-overflow
+CFLAGS += -Wno-unknown-pragmas -fno-builtin -frounding-math
+CFLAGS += -Werror=implicit-function-declaration -Werror=implicit-int
+CFLAGS += -Werror=pointer-sign -Werror=pointer-arith -g
+LDFLAGS += -g
+LDLIBS += -lpthread -lm -lrt
+RUN_WRAP = ${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh
+EOF
+
+    for test_suite in api functional math musl regression; do
+        test_targets+=("src/${test_suite}/all")
+    done
+    if ! make \
+        -C "${SOURCE_DIR}/libc-test" \
+        "${test_targets[@]}" \
+        -j"${JOBS}"; then
+        echo "musl libc-test failed to build or run" >&2
+        return 1
+    fi
+    for test_suite in api functional math musl regression; do
+        install -Dm644 \
+            "${build_root}/${test_suite}/REPORT" \
+            "${artifact_root}/${test_suite}/REPORT"
+    done
+    find "${artifact_root}" \
+        -mindepth 2 \
+        -maxdepth 2 \
+        -name REPORT \
+        -type f \
+        -print0 |
+        sort -z |
+        xargs -0 cat > "${report}"
+    failure_count=$(
+        grep -Ec '^(BUILDERROR|FAIL) ' "${report}" ||
+            true
+    )
+    if ((failure_count != 0)); then
+        echo "musl libc-test reported ${failure_count} diagnostic failures"
+        echo "The complete report is uploaded with the build logs"
+    else
+        echo "musl libc-test passed"
+    fi
+}
+
+run_toolchain_checks() {
+    local status=0
+
+    check_binutils || status=1
+    check_gcc || status=1
+    check_musl || status=1
+
+    if ((status != 0)); then
+        echo "One or more toolchain checks failed" >&2
+    fi
+    return "${status}"
+}
+
 verify_static_host() {
     local count=0
     local executable
@@ -553,17 +664,38 @@ verify_relocatable_toolchain() {
         > "${smoke_dir}/hello.cpp"
     printf '#include <omp.h>\nint main(void) { return omp_get_max_threads() < 1; }\n' \
         > "${smoke_dir}/openmp.c"
+    printf 'int main(void) { volatile __int128 a = ((__int128) 1 << 100) + 7; volatile __int128 b = 11; return a / b == 0; }\n' \
+        > "${smoke_dir}/libgcc.c"
 
     "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
     "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
     "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
+    "${cc}" "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc"
 
     file "${smoke_dir}/hello-c" | grep 'ARM aarch64' >/dev/null
     file "${smoke_dir}/hello-cpp" | grep 'ARM aarch64' >/dev/null
     file "${smoke_dir}/hello-openmp" | grep 'ARM aarch64' >/dev/null
+    file "${smoke_dir}/hello-libgcc" | grep 'ARM aarch64' >/dev/null
     readelf -l "${smoke_dir}/hello-c" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
     readelf -l "${smoke_dir}/hello-cpp" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
     readelf -l "${smoke_dir}/hello-openmp" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
+    readelf -l "${smoke_dir}/hello-libgcc" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
+
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-c" |
+        grep '^ok$' >/dev/null
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-cpp" |
+        grep '^ok$' >/dev/null
+    MSYSROOT="${expected_sysroot}" \
+        OMP_NUM_THREADS=2 \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-openmp"
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-libgcc"
 
     mv "${relocated_dir}" "${MPREFIX}"
 }
@@ -580,11 +712,13 @@ build_toolchain() {
     rm -rf \
         "${BUILD_DIR:?}/build-binutils" \
         "${BUILD_DIR:?}/build-gcc" \
+        "${BUILD_DIR:?}/build-libc-test" \
         "${BUILD_DIR:?}/build-musl" \
         "${MPREFIX:?}"
     mkdir -p \
         "${BUILD_DIR}/build-binutils" \
         "${BUILD_DIR}/build-gcc" \
+        "${BUILD_DIR}/build-libc-test" \
         "${BUILD_DIR}/build-musl" \
         "${MPREFIX}" \
         "${MSYSROOT}/usr/include"
@@ -601,6 +735,7 @@ build_toolchain() {
     build_static_libgcc
     build_musl
     build_target_libraries
+    run_toolchain_checks
     verify_static_host
     verify_relocatable_toolchain
 }

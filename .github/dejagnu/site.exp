@@ -1,0 +1,1 @@
+lappend boards_dir "$env(GITHUB_WORKSPACE)/.github/dejagnu"

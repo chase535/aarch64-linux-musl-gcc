@@ -35,7 +35,7 @@ env:
   MPREFIX: "${{ github.workspace }}/output/toolchain"
   MSYSROOT: "${{ github.workspace }}/output/toolchain/aarch64-linux-musl/sysroot"
   ALPINE_IMAGE: "alpine:3.24"
-  CACHE_VERSION: "alpine-3.24-static-musl-v3-all-public-headers"
+  CACHE_VERSION: "alpine-3.24-static-musl-v4-make-check"
   GMP_REPOSITORY: "https://github.com/gmp-mirror/gmp.git"
   ISL_REPOSITORY: "https://repo.or.cz/isl.git"
   MPFR_REPOSITORY: "https://gitlab.inria.fr/mpfr/mpfr.git"
@@ -163,6 +163,7 @@ jobs:
           path: |
             ${{ env.LOG_DIR }}
             ${{ env.BUILD_DIR }}/build-gmp/config.log
+            ${{ env.BUILD_DIR }}/build-gmp/**/test-suite.log
           if-no-files-found: warn
           retention-days: 30
 
@@ -219,6 +220,7 @@ jobs:
           path: |
             ${{ env.LOG_DIR }}
             ${{ env.BUILD_DIR }}/build-isl/config.log
+            ${{ env.BUILD_DIR }}/build-isl/**/test-suite.log
           if-no-files-found: warn
           retention-days: 30
 
@@ -275,6 +277,7 @@ jobs:
           path: |
             ${{ env.LOG_DIR }}
             ${{ env.BUILD_DIR }}/build-mpfr/config.log
+            ${{ env.BUILD_DIR }}/build-mpfr/**/test-suite.log
           if-no-files-found: warn
           retention-days: 30
 
@@ -339,6 +342,7 @@ jobs:
           path: |
             ${{ env.LOG_DIR }}
             ${{ env.BUILD_DIR }}/build-mpc/config.log
+            ${{ env.BUILD_DIR }}/build-mpc/**/test-suite.log
           if-no-files-found: warn
           retention-days: 30
 
@@ -445,5 +449,8 @@ jobs:
           path: |
             ${{ env.LOG_DIR }}
             ${{ env.BUILD_DIR }}/**/config.log
+            ${{ env.BUILD_DIR }}/**/*.sum
+            ${{ env.BUILD_DIR }}/**/*.log
+            ${{ env.BUILD_DIR }}/**/REPORT
           if-no-files-found: warn
           retention-days: 30
