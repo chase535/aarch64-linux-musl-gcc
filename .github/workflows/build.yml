@@ -94,16 +94,6 @@ jobs:
       actions: write
       contents: read
     steps:
-      - name: Checkout workflow files
-        uses: actions/checkout@v7
-        with:
-          persist-credentials: false
-      - name: Start cached Alpine container
-        uses: ./.github/actions/start-build-container
-        with:
-          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
-          image: ${{ env.ALPINE_IMAGE }}
       - name: Delete old workflow runs
         if: ${{ github.event_name != 'pull_request' }}
         uses: Mattraks/delete-workflow-runs@v2
