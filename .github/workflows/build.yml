@@ -6,7 +6,9 @@ on:
     branches:
       - 'main'
     paths:
+      - '.github/actions/**'
       - '.github/dejagnu/**'
+      - '.github/docker/**'
       - '.github/workflows/build.yml'
       - '.github/patches/**'
       - '.github/scripts/**'
@@ -14,7 +16,9 @@ on:
     branches:
       - 'main'
     paths:
+      - '.github/actions/**'
       - '.github/dejagnu/**'
+      - '.github/docker/**'
       - '.github/workflows/build.yml'
       - '.github/patches/**'
       - '.github/scripts/**'
@@ -36,7 +40,9 @@ env:
   LOG_DIR: "${{ github.workspace }}/build-logs"
   MPREFIX: "${{ github.workspace }}/output/toolchain"
   MSYSROOT: "${{ github.workspace }}/output/toolchain/aarch64-linux-musl/sysroot"
-  ALPINE_IMAGE: "alpine:3.24"
+  ALPINE_IMAGE: "aarch64-linux-musl-gcc-build:alpine-3.24"
+  BUILD_IMAGE_CACHE_PATH: "${{ github.workspace }}/.cache/alpine-build-image.tar"
+  BUILD_IMAGE_CACHE_VERSION: "alpine-3.24-build-image-v1"
   CACHE_VERSION: "alpine-3.24-static-musl-v4-make-check"
   GMP_REPOSITORY: "https://github.com/gmp-mirror/gmp.git"
   ISL_REPOSITORY: "https://repo.or.cz/isl.git"
@@ -48,12 +54,57 @@ defaults:
     shell: bash --noprofile --norc -euo pipefail {0}
 
 jobs:
+  prepare-build-container:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Restore Alpine build image
+        id: build-image-cache
+        uses: actions/cache/restore@v5
+        with:
+          path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+      - name: Build Alpine image
+        if: ${{ steps.build-image-cache.outputs.cache-hit != 'true' }}
+        run: |
+          docker build \
+            --tag "${ALPINE_IMAGE}" \
+            .github/docker
+          mkdir -p "$(dirname "${BUILD_IMAGE_CACHE_PATH}")"
+          docker save \
+            --output "${BUILD_IMAGE_CACHE_PATH}" \
+            "${ALPINE_IMAGE}"
+      - name: Save Alpine build image
+        if: ${{ steps.build-image-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache/save@v5
+        with:
+          path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+      - name: Verify Alpine build image
+        run: |
+          docker load --input "${BUILD_IMAGE_CACHE_PATH}"
+          docker image inspect "${ALPINE_IMAGE}" >/dev/null
+
   delete-old-workflow-runs:
+    needs: [ prepare-build-container ]
     runs-on: ubuntu-latest
     permissions:
       actions: write
       contents: read
     steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Delete old workflow runs
         if: ${{ github.event_name != 'pull_request' }}
         uses: Mattraks/delete-workflow-runs@v2
@@ -65,6 +116,7 @@ jobs:
           delete_workflow_pattern: 'Build|Dependabot Updates'
 
   make-headers:
+    needs: [ prepare-build-container ]
     name: make-${{ matrix.source }}-headers
     runs-on: ubuntu-latest
     outputs:
@@ -87,6 +139,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
       - name: Get latest git commit id
@@ -122,6 +180,7 @@ jobs:
           retention-days: 30
 
   build-gmp:
+    needs: [ prepare-build-container ]
     runs-on: ubuntu-latest
     env:
       GMP_COMMIT_ID: "0000000000000000000000000000000000000000"
@@ -132,6 +191,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
       - name: Get latest GMP commit id
@@ -173,7 +238,7 @@ jobs:
           retention-days: 30
 
   build-isl:
-    needs: [ build-gmp ]
+    needs: [ prepare-build-container, build-gmp ]
     runs-on: ubuntu-latest
     env:
       GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
@@ -185,6 +250,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
       - name: Get latest ISL commit id
@@ -233,7 +304,7 @@ jobs:
           retention-days: 30
 
   build-mpfr:
-    needs: [ build-gmp ]
+    needs: [ prepare-build-container, build-gmp ]
     runs-on: ubuntu-latest
     env:
       GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
@@ -245,6 +316,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
       - name: Get latest MPFR commit id
@@ -293,7 +370,7 @@ jobs:
           retention-days: 30
 
   build-mpc:
-    needs: [ build-gmp, build-mpfr ]
+    needs: [ prepare-build-container, build-gmp, build-mpfr ]
     runs-on: ubuntu-latest
     env:
       GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
@@ -306,6 +383,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
       - name: Get latest MPC commit id
@@ -361,7 +444,7 @@ jobs:
           retention-days: 30
 
   build-gcc-and-push:
-    needs: [ make-headers, build-gmp, build-isl, build-mpfr, build-mpc ]
+    needs: [ prepare-build-container, make-headers, build-gmp, build-isl, build-mpfr, build-mpc ]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -377,6 +460,12 @@ jobs:
         uses: actions/checkout@v7
         with:
           persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
       - name: Create directory

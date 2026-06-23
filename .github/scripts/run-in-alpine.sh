@@ -70,7 +70,7 @@ if [[ ! "${BUILD_JOBS}" =~ ^[1-9][0-9]*$ ]]; then
 fi
 
 require_env \
-    ALPINE_IMAGE \
+    BUILD_CONTAINER_NAME \
     GITHUB_WORKSPACE \
     SOURCE_DIR \
     OUTPUT_DIR \
@@ -82,11 +82,13 @@ require_env \
 
 mkdir -p "${LOG_DIR}"
 
+if ! docker container inspect "${BUILD_CONTAINER_NAME}" >/dev/null 2>&1; then
+    echo "Build container is not running: ${BUILD_CONTAINER_NAME}" >&2
+    exit 1
+fi
+
 DOCKER_ARGS=(
-    run
-    --rm
-    --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}"
-    --workdir "${GITHUB_WORKSPACE}"
+    exec
     --env "BUILD_JOBS=${BUILD_JOBS}"
     --env "HOST_UID=$(id -u)"
     --env "HOST_GID=$(id -g)"
@@ -104,46 +106,9 @@ done
 
 set +e
 docker "${DOCKER_ARGS[@]}" \
-    "${ALPINE_IMAGE}" \
-    /bin/sh -euc '
-        apk add --no-cache \
-            autoconf \
-            automake \
-            bash \
-            bc \
-            bison \
-            build-base \
-            coreutils \
-            curl \
-            dejagnu \
-            diffutils \
-            expect \
-            file \
-            findutils \
-            flex \
-            gawk \
-            git \
-            libstdc++-dev \
-            libtool \
-            linux-headers \
-            m4 \
-            musl-dev \
-            patch \
-            perl \
-            pkgconf \
-            python3 \
-            qemu-aarch64 \
-            rsync \
-            tar \
-            tcl \
-            texinfo \
-            xz \
-            zlib-dev \
-            zlib-static \
-            zstd-dev \
-            zstd-static
-        exec bash .github/scripts/build-in-alpine.sh "$@"
-    ' sh "$@" 2>&1 | tee "${LOG_DIR}/alpine-${MODE}.log"
+    "${BUILD_CONTAINER_NAME}" \
+    bash .github/scripts/build-in-alpine.sh "$@" \
+    2>&1 | tee "${LOG_DIR}/alpine-${MODE}.log"
 status=${PIPESTATUS[0]}
 set -e
 
