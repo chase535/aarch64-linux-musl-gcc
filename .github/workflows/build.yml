@@ -56,17 +56,24 @@ defaults:
 jobs:
   prepare-build-container:
     runs-on: ubuntu-latest
+    outputs:
+      BUILD_IMAGE_CACHE_KEY: ${{ steps.build-image-cache-key.outputs.value }}
     steps:
       - name: Checkout workflow files
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Restore Alpine build image
+      - name: Calculate Alpine build image cache key
+        id: build-image-cache-key
+        run: |
+          dockerfile_sha=$(sha256sum .github/docker/Dockerfile | awk '{print $1}')
+          echo "value=${RUNNER_OS}-${BUILD_IMAGE_CACHE_VERSION}-${dockerfile_sha}" >> "${GITHUB_OUTPUT}"
+      - name: Cache Alpine build image
         id: build-image-cache
-        uses: actions/cache/restore@v5
+        uses: actions/cache@v5
         with:
           path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          key: ${{ steps.build-image-cache-key.outputs.value }}
       - name: Build Alpine image
         if: ${{ steps.build-image-cache.outputs.cache-hit != 'true' }}
         run: |
@@ -77,12 +84,6 @@ jobs:
           docker save \
             --output "${BUILD_IMAGE_CACHE_PATH}" \
             "${ALPINE_IMAGE}"
-      - name: Save Alpine build image
-        if: ${{ steps.build-image-cache.outputs.cache-hit != 'true' }}
-        uses: actions/cache/save@v5
-        with:
-          path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
       - name: Verify Alpine build image
         run: |
           docker load --input "${BUILD_IMAGE_CACHE_PATH}"
@@ -132,7 +133,7 @@ jobs:
         uses: ./.github/actions/start-build-container
         with:
           cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
           image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
@@ -184,7 +185,7 @@ jobs:
         uses: ./.github/actions/start-build-container
         with:
           cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
           image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
@@ -243,7 +244,7 @@ jobs:
         uses: ./.github/actions/start-build-container
         with:
           cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
           image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
@@ -309,7 +310,7 @@ jobs:
         uses: ./.github/actions/start-build-container
         with:
           cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
           image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
@@ -376,7 +377,7 @@ jobs:
         uses: ./.github/actions/start-build-container
         with:
           cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
           image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
@@ -453,7 +454,7 @@ jobs:
         uses: ./.github/actions/start-build-container
         with:
           cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          cache-key: ${{ runner.os }}-${{ env.BUILD_IMAGE_CACHE_VERSION }}-${{ hashFiles('.github/docker/Dockerfile') }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
           image: ${{ env.ALPINE_IMAGE }}
       - name: Prepare build logs
         run: mkdir -p "${LOG_DIR}"
