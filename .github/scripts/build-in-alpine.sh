@@ -526,7 +526,7 @@ SELF="$(dirname "$0")/REPLACE_ME.real"
 add_static=1
 for arg in "$@"; do
     case "$arg" in
-        -shared) add_static=0; break ;;
+        -shared|-Wl,-Bdynamic) add_static=0; break ;;
         -static|-Bstatic) add_static=0; break ;;
     esac
 done
@@ -618,10 +618,10 @@ verify_relocatable_toolchain() {
         > "${smoke_dir}/libgcc.c"
 
     # Dynamically linked: verify binary format and dynamic linker path
-    "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
-    "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
-    "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
-    "${cc}" "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
+    "${cc}" -Wl,-Bdynamic "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
+    "${cxx}" -Wl,-Bdynamic "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
+    "${cc}" -Wl,-Bdynamic -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
+    "${cc}" -Wl,-Bdynamic "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
 
     file "${smoke_dir}/hello-c-dyn" | grep 'ARM aarch64' >/dev/null
     file "${smoke_dir}/hello-cpp-dyn" | grep 'ARM aarch64' >/dev/null
@@ -632,11 +632,11 @@ verify_relocatable_toolchain() {
     readelf -l "${smoke_dir}/hello-openmp-dyn" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
     readelf -l "${smoke_dir}/hello-libgcc-dyn" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
 
-    # Statically linked: verify execution via QEMU
-    "${cc}" -static "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
-    "${cxx}" -static "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
-    "${cc}" -static -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
-    "${cc}" -static "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc"
+    # Statically linked (wrapper injects -static automatically): verify execution via QEMU
+    "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
+    "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
+    "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
+    "${cc}" "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc"
 
     MSYSROOT="${expected_sysroot}" \
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
