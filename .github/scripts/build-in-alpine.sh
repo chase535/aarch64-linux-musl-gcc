@@ -506,16 +506,40 @@ build_target_libraries() {
     make install-strip-target -j"${JOBS}"
 }
 
-generate_static_specs() {
-    local specs_dir
-    local specs_file
+install_static_wrappers() {
+    local bin_dir="${MPREFIX}/bin"
+    local real_bin
+    local name
 
-    specs_dir="$(dirname "$("${MPREFIX}/bin/${TARGET}-gcc" -print-libgcc-file-name)")"
-    specs_file="${specs_dir}/specs"
-    "${MPREFIX}/bin/${TARGET}-gcc" -dumpspecs > "${specs_file}"
-    awk '/^\*link:/{print; print "-static"; next}1' "${specs_file}" > "${specs_file}.tmp" \
-        && mv "${specs_file}.tmp" "${specs_file}"
-    echo "Generated static specs file: ${specs_file}"
+    for name in gcc g++; do
+        real_bin="${bin_dir}/${TARGET}-${name}"
+        if [[ ! -f "${real_bin}" ]]; then
+            continue
+        fi
+
+        # Move real binary aside and install wrapper in its place.
+        mv "${real_bin}" "${real_bin}.real"
+        cat > "${real_bin}" <<'WRAPPER'
+#!/bin/sh
+# Inject -static unless the user explicitly builds shared objects.
+SELF="$(dirname "$0")/REPLACE_ME.real"
+add_static=1
+for arg in "$@"; do
+    case "$arg" in
+        -shared) add_static=0; break ;;
+        -static|-Bstatic) add_static=0; break ;;
+    esac
+done
+if [ "$add_static" -eq 1 ]; then
+    exec "$SELF" -static "$@"
+else
+    exec "$SELF" "$@"
+fi
+WRAPPER
+        sed -i "s|REPLACE_ME|${TARGET}-${name}|" "${real_bin}"
+        chmod +x "${real_bin}"
+        echo "Installed static-default wrapper: ${TARGET}-${name}"
+    done
 }
 
 verify_static_host() {
@@ -670,7 +694,7 @@ build_toolchain() {
     build_static_libgcc
     build_musl
     build_target_libraries
-    generate_static_specs
+    install_static_wrappers
 }
 
 verify_toolchain() {

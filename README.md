@@ -10,7 +10,7 @@
 
 ## 静态链接
 
-交叉编译器默认生成**静态链接**的 ELF 文件（通过 GCC specs 文件注入 `-static`）。
+交叉编译器默认生成**静态链接**的 ELF 文件。`gcc`、`g++`、`cc`、`c++` 均为 wrapper 脚本，自动在参数前注入 `-static`，无需手动指定。
 
 ### 为什么默认静态链接
 
@@ -23,17 +23,17 @@
 
 ### 如需动态链接
 
-使用以下任一方式覆盖默认的静态链接：
+传递 `-shared` 参数时，wrapper 不会注入 `-static`，直接调用原始 GCC 二进制：
 
 ```bash
-# 方式一：忽略自定义 specs，使用 GCC 默认行为（动态链接）
-aarch64-linux-musl-gcc -specs=/dev/null hello.c -o hello
-
-# 方式二：显式切换为动态链接
-aarch64-linux-musl-gcc -Wl,-Bdynamic hello.c -o hello
+aarch64-linux-musl-gcc -shared -fPIC foo.c -o libfoo.so
 ```
 
-普通的 `-Wl` 参数（如 `-Wl,-O2`、`-Wl,--hash-style=both`）不会覆盖默认的 `-static`，只有 `-Wl,-Bdynamic` 或 `-specs=/dev/null` 等显式切换动静态的参数才会生效。
+如需编译动态链接的可执行文件，直接调用 `.real` 二进制绕过 wrapper：
+
+```bash
+aarch64-linux-musl-gcc.real hello.c -o hello
+```
 
 动态链接的产物**只能在以下环境中运行**：
 
