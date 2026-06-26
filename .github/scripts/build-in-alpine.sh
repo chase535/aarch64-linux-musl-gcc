@@ -509,8 +509,10 @@ build_target_libraries() {
 install_static_wrappers() {
     local bin_dir="${MPREFIX}/bin"
     local real_bin
+    local alias_name
     local name
 
+    # gcc→cc, g++→c++
     for name in gcc g++; do
         real_bin="${bin_dir}/${TARGET}-${name}"
         if [[ ! -f "${real_bin}" ]]; then
@@ -539,6 +541,16 @@ WRAPPER
         sed -i "s|REPLACE_ME|${TARGET}-${name}|" "${real_bin}"
         chmod +x "${real_bin}"
         echo "Installed static-default wrapper: ${TARGET}-${name}"
+
+        # Install a copy for the alias (gcc→cc, g++→c++).
+        case "${name}" in
+            gcc) alias_name="cc" ;;
+            g++) alias_name="c++" ;;
+        esac
+        rm -f "${bin_dir}/${TARGET}-${alias_name}"
+        cp "${real_bin}" "${bin_dir}/${TARGET}-${alias_name}"
+        chmod +x "${bin_dir}/${TARGET}-${alias_name}"
+        echo "Installed static-default wrapper: ${TARGET}-${alias_name} (copy of ${TARGET}-${name})"
     done
 }
 
