@@ -505,19 +505,18 @@ build_target_libraries() {
     make enable_shared=yes all-target -j"${JOBS}"
     make install-strip-target -j"${JOBS}"
 }
+
 generate_static_specs() {
     local specs_dir
     local specs_file
 
-    specs_dir="$(dirname "$("${MPREFIX}/bin/${TARGET}-gcc" -print-libgcc)")"
+    specs_dir="$(dirname "$("${MPREFIX}/bin/${TARGET}-gcc" -print-libgcc-file-name)")"
     specs_file="${specs_dir}/specs"
     "${MPREFIX}/bin/${TARGET}-gcc" -dumpspecs > "${specs_file}"
-    # Prepend *link: with -static so the linker defaults to static linking
-    sed -i '/^\*link:/$/{ n; s/^/-static /; }' "${specs_file}"
+    awk '/^\*link:/{print; print "-static"; next}1' "${specs_file}" > "${specs_file}.tmp" \
+        && mv "${specs_file}.tmp" "${specs_file}"
     echo "Generated static specs file: ${specs_file}"
 }
-
-
 
 verify_static_host() {
     local count=0
