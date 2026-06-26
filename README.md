@@ -10,12 +10,23 @@
 
 ## 静态链接
 
-交叉编译器默认生成**静态链接**的 ELF 文件（通过 GCC specs 文件注入 `-static`）。编译产物可以直接在目标 aarch64 Linux 系统上运行，无需 musl 动态链接器。
+交叉编译器默认生成**静态链接**的 ELF 文件（通过 GCC specs 文件注入 `-static`）。
 
-如需动态链接，使用以下任一方式覆盖：
+### 为什么默认静态链接
+
+大多数 aarch64 Linux 发行版（如 Ubuntu、Debian）使用 glibc，而本工具链编译出的动态链接程序依赖 musl 的动态链接器 `/lib/ld-musl-aarch64.so.1`。这意味着：
+
+- 在 glibc 系统上无法直接运行动态链接的产物，必须额外安装 musl 库
+- 静态链接的产物不依赖任何动态链接器，可以**在任意 aarch64 Linux 系统上直接运行**
+
+因此默认静态链接以保证编译产物的最大兼容性。
+
+### 如需动态链接
+
+使用以下任一方式覆盖默认的静态链接：
 
 ```bash
-# 方式一：忽略自定义 specs
+# 方式一：忽略自定义 specs，使用 GCC 默认行为（动态链接）
 aarch64-linux-musl-gcc -specs=/dev/null hello.c -o hello
 
 # 方式二：显式切换为动态链接
@@ -23,3 +34,14 @@ aarch64-linux-musl-gcc -Wl,-Bdynamic hello.c -o hello
 ```
 
 普通的 `-Wl` 参数（如 `-Wl,-O2`、`-Wl,--hash-style=both`）不会覆盖默认的 `-static`，只有 `-Wl,-Bdynamic` 或 `-specs=/dev/null` 等显式切换动静态的参数才会生效。
+
+动态链接的产物**只能在以下环境中运行**：
+
+- **Alpine Linux（aarch64）**：系统自带 musl，直接可用
+- **其他发行版**：需手动安装 musl 并创建动态链接器：
+
+  ```bash
+  # Ubuntu / Debian
+  apt install musl
+  ln -sf /usr/lib/aarch64-linux-musl/libc.so /lib/ld-musl-aarch64.so.1
+  ```
