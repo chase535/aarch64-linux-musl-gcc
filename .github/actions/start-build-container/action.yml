@@ -1,0 +1,43 @@
+name: Start cached Alpine build container
+description: Restore the cached build image and start one container for the current job
+
+inputs:
+  cache-path:
+    description: Path to the cached Docker image archive
+    required: true
+  cache-key:
+    description: Exact Actions Cache key for the Docker image archive
+    required: true
+  image:
+    description: Docker image name and tag
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Restore Alpine build image
+      id: build-image-cache
+      uses: actions/cache/restore@v5
+      with:
+        path: ${{ inputs.cache-path }}
+        key: ${{ inputs.cache-key }}
+        fail-on-cache-miss: true
+    - name: Load image and start container
+      shell: bash
+      env:
+        BUILD_IMAGE_CACHE_PATH: ${{ inputs.cache-path }}
+        BUILD_IMAGE: ${{ inputs.image }}
+      run: |
+        docker load --input "${BUILD_IMAGE_CACHE_PATH}"
+        docker image inspect "${BUILD_IMAGE}" >/dev/null
+        BUILD_CONTAINER_NAME="build-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+        docker run \
+          --detach \
+          --rm \
+          --name "${BUILD_CONTAINER_NAME}" \
+          --volume "${GITHUB_WORKSPACE}:${GITHUB_WORKSPACE}" \
+          --workdir "${GITHUB_WORKSPACE}" \
+          "${BUILD_IMAGE}" \
+          tail -f /dev/null
+        docker exec "${BUILD_CONTAINER_NAME}" bash --version
+        echo "BUILD_CONTAINER_NAME=${BUILD_CONTAINER_NAME}" >> "${GITHUB_ENV}"

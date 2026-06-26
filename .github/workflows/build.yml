@@ -1,0 +1,562 @@
+name: Build
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/actions/**'
+      - '.github/dejagnu/**'
+      - '.github/docker/**'
+      - '.github/workflows/build.yml'
+      - '.github/patches/**'
+      - '.github/scripts/**'
+  pull_request:
+    branches:
+      - 'main'
+    paths:
+      - '.github/actions/**'
+      - '.github/dejagnu/**'
+      - '.github/docker/**'
+      - '.github/workflows/build.yml'
+      - '.github/patches/**'
+      - '.github/scripts/**'
+  schedule:
+    - cron: '0 1 * * 1'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: build-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  PUSH_CLONE_DIR: "${{ github.workspace }}/push_git_clone"
+  SOURCE_DIR: "${{ github.workspace }}/source"
+  OUTPUT_DIR: "${{ github.workspace }}/output"
+  BUILD_DIR: "${{ github.workspace }}/build"
+  LOG_DIR: "${{ github.workspace }}/build-logs"
+  MPREFIX: "${{ github.workspace }}/output/toolchain"
+  MSYSROOT: "${{ github.workspace }}/output/toolchain/aarch64-linux-musl/sysroot"
+  ALPINE_IMAGE: "aarch64-linux-musl-gcc-build:alpine-3.24"
+  BUILD_IMAGE_CACHE_PATH: "${{ github.workspace }}/.cache/alpine-build-image.tar"
+  BUILD_IMAGE_CACHE_VERSION: "alpine-3.24-build-image-v1"
+  CACHE_VERSION: "alpine-3.24-static-musl-v6-no-check"
+  GMP_REPOSITORY: "https://github.com/gmp-mirror/gmp.git"
+  ISL_REPOSITORY: "https://repo.or.cz/isl.git"
+  MPFR_REPOSITORY: "https://gitlab.inria.fr/mpfr/mpfr.git"
+  MPC_REPOSITORY: "https://gitlab.inria.fr/mpc/mpc.git"
+
+defaults:
+  run:
+    shell: bash --noprofile --norc -euo pipefail {0}
+
+jobs:
+  prepare-build-container:
+    runs-on: ubuntu-latest
+    outputs:
+      BUILD_IMAGE_CACHE_KEY: ${{ steps.build-image-cache-key.outputs.value }}
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Resolve Alpine build image cache key
+        id: build-image-cache-key
+        run: |
+          base_image=$(awk 'toupper($1) == "FROM" { print $2; exit }' .github/docker/Dockerfile)
+          if [[ -z "${base_image}" ]]; then
+            echo "Unable to determine the base image from Dockerfile" >&2
+            exit 1
+          fi
+          docker pull "${base_image}"
+          base_image_id=$(docker image inspect --format '{{.Id}}' "${base_image}")
+          base_image_id=${base_image_id#sha256:}
+          dockerfile_sha=$(sha256sum .github/docker/Dockerfile | awk '{print $1}')
+          echo "Base image: ${base_image}"
+          echo "Base image ID: ${base_image_id}"
+          echo "value=${RUNNER_OS}-${BUILD_IMAGE_CACHE_VERSION}-${dockerfile_sha}-${base_image_id}" >> "${GITHUB_OUTPUT}"
+      - name: Cache Alpine build image
+        id: build-image-cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          key: ${{ steps.build-image-cache-key.outputs.value }}
+      - name: Build Alpine image
+        if: ${{ steps.build-image-cache.outputs.cache-hit != 'true' }}
+        run: |
+          docker build \
+            --pull \
+            --tag "${ALPINE_IMAGE}" \
+            .github/docker
+          mkdir -p "$(dirname "${BUILD_IMAGE_CACHE_PATH}")"
+          docker save \
+            --output "${BUILD_IMAGE_CACHE_PATH}" \
+            "${ALPINE_IMAGE}"
+      - name: Verify Alpine build image
+        run: |
+          docker load --input "${BUILD_IMAGE_CACHE_PATH}"
+          docker image inspect "${ALPINE_IMAGE}" >/dev/null
+
+  delete-old-workflow-runs:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Delete old workflow runs
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: Mattraks/delete-workflow-runs@v2
+        with:
+          token: ${{ github.token }}
+          repository: ${{ github.repository }}
+          retain_days: 0
+          keep_minimum_runs: 0
+          delete_workflow_pattern: 'Build|Dependabot Updates'
+
+  make-headers:
+    name: make-${{ matrix.source }}-headers
+    needs: [ prepare-build-container ]
+    runs-on: ubuntu-latest
+    outputs:
+      LINUX_COMMIT_ID: ${{ steps.commit_id.outputs.LINUX_COMMIT_ID }}
+      MUSL_COMMIT_ID: ${{ steps.commit_id.outputs.MUSL_COMMIT_ID }}
+    env:
+      HEADER_SOURCE: "${{ matrix.source }}"
+      HEADER_REPOSITORY: "${{ matrix.repository }}"
+      HEADER_COMMIT_ID: "0000000000000000000000000000000000000000"
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - source: linux
+            repository: https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git
+          - source: musl
+            repository: https://git.musl-libc.org/git/musl
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
+          image: ${{ env.ALPINE_IMAGE }}
+      - name: Prepare build logs
+        run: mkdir -p "${LOG_DIR}"
+      - name: Get latest git commit id
+        id: commit_id
+        run: |
+          HEADER_COMMIT_ID=$(git ls-remote "${HEADER_REPOSITORY}" refs/heads/master | awk '{print $1}')
+          if [[ ! "${HEADER_COMMIT_ID}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid ${HEADER_SOURCE} commit id: ${HEADER_COMMIT_ID}" >&2
+            exit 1
+          fi
+          echo "${HEADER_COMMIT_ID}"
+          echo "${HEADER_SOURCE^^}_COMMIT_ID=${HEADER_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "HEADER_COMMIT_ID=${HEADER_COMMIT_ID}" >> "${GITHUB_ENV}"
+      - name: Cache ${{ matrix.source }} headers
+        uses: actions/cache@v6
+        id: headers-cache
+        with:
+          path: ${{ env.MSYSROOT }}/usr/include
+          key: ${{ env.CACHE_VERSION }}-${{ env.HEADER_SOURCE }}-headers-${{ env.HEADER_COMMIT_ID }}
+      - name: Skip build
+        if: ${{ steps.headers-cache.outputs.cache-hit == 'true' }}
+        run: echo "${HEADER_SOURCE} headers restored from cache" | tee "${LOG_DIR}/${HEADER_SOURCE}-headers.log"
+      - name: Make ${{ matrix.source }} headers
+        if: ${{ steps.headers-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh headers "${HEADER_SOURCE}" "${HEADER_REPOSITORY}" "${HEADER_COMMIT_ID}"
+      - name: Upload ${{ matrix.source }} header logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-${{ matrix.source }}-headers-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ env.LOG_DIR }}
+          if-no-files-found: warn
+          retention-days: 30
+
+  build-gmp:
+    needs: [ prepare-build-container ]
+    runs-on: ubuntu-latest
+    env:
+      GMP_COMMIT_ID: "0000000000000000000000000000000000000000"
+    outputs:
+      GMP_COMMIT_ID: ${{ steps.commit_id.outputs.GMP_COMMIT_ID }}
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
+          image: ${{ env.ALPINE_IMAGE }}
+      - name: Prepare build logs
+        run: mkdir -p "${LOG_DIR}"
+      - name: Get latest GMP commit id
+        id: commit_id
+        run: |
+          GMP_COMMIT_ID=$(git ls-remote "${GMP_REPOSITORY}" refs/heads/master | awk '{print $1}')
+          if [[ ! "${GMP_COMMIT_ID}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid GMP commit id: ${GMP_COMMIT_ID}" >&2
+            exit 1
+          fi
+          echo "${GMP_COMMIT_ID}"
+          echo "GMP_COMMIT_ID=${GMP_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "GMP_COMMIT_ID=${GMP_COMMIT_ID}" >> "${GITHUB_ENV}"
+      - name: Cache gmp
+        uses: actions/cache@v6
+        id: gmp-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/gmp
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
+      - name: Skip build and check
+        if: ${{ steps.gmp-cache.outputs.cache-hit == 'true' }}
+        run: echo "GMP ${GMP_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/gmp.log"
+      - name: Build GMP
+        if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh gmp-build
+      - name: Check GMP
+        if: ${{ steps.gmp-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh gmp-check
+      - name: Upload gmp logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-gmp-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.LOG_DIR }}
+            ${{ env.BUILD_DIR }}/build-gmp/config.log
+            ${{ env.BUILD_DIR }}/build-gmp/**/test-suite.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  build-isl:
+    needs: [ prepare-build-container, build-gmp ]
+    runs-on: ubuntu-latest
+    env:
+      GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
+      ISL_COMMIT_ID: "0000000000000000000000000000000000000000"
+    outputs:
+      ISL_COMMIT_ID: ${{ steps.commit_id.outputs.ISL_COMMIT_ID }}
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
+          image: ${{ env.ALPINE_IMAGE }}
+      - name: Prepare build logs
+        run: mkdir -p "${LOG_DIR}"
+      - name: Get latest ISL commit id
+        id: commit_id
+        run: |
+          ISL_COMMIT_ID=$(git ls-remote "${ISL_REPOSITORY}" refs/heads/master | awk '{print $1}')
+          if [[ ! "${ISL_COMMIT_ID}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid ISL commit id: ${ISL_COMMIT_ID}" >&2
+            exit 1
+          fi
+          echo "${ISL_COMMIT_ID}"
+          echo "ISL_COMMIT_ID=${ISL_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "ISL_COMMIT_ID=${ISL_COMMIT_ID}" >> "${GITHUB_ENV}"
+      - name: Cache isl
+        uses: actions/cache@v6
+        id: isl-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/isl
+          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+      - name: Skip build and check
+        if: ${{ steps.isl-cache.outputs.cache-hit == 'true' }}
+        run: echo "ISL ${ISL_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/isl.log"
+      - name: Cache gmp
+        if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache@v6
+        id: gmp-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/gmp
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
+      - name: Build ISL
+        if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh isl-build
+      - name: Check ISL
+        if: ${{ steps.isl-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh isl-check
+      - name: Upload isl logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-isl-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.LOG_DIR }}
+            ${{ env.BUILD_DIR }}/build-isl/config.log
+            ${{ env.BUILD_DIR }}/build-isl/**/test-suite.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  build-mpfr:
+    needs: [ prepare-build-container, build-gmp ]
+    runs-on: ubuntu-latest
+    env:
+      GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
+      MPFR_COMMIT_ID: "0000000000000000000000000000000000000000"
+    outputs:
+      MPFR_COMMIT_ID: ${{ steps.commit_id.outputs.MPFR_COMMIT_ID }}
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
+          image: ${{ env.ALPINE_IMAGE }}
+      - name: Prepare build logs
+        run: mkdir -p "${LOG_DIR}"
+      - name: Get latest MPFR commit id
+        id: commit_id
+        run: |
+          MPFR_COMMIT_ID=$(git ls-remote "${MPFR_REPOSITORY}" refs/heads/master | awk '{print $1}')
+          if [[ ! "${MPFR_COMMIT_ID}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid MPFR commit id: ${MPFR_COMMIT_ID}" >&2
+            exit 1
+          fi
+          echo "${MPFR_COMMIT_ID}"
+          echo "MPFR_COMMIT_ID=${MPFR_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "MPFR_COMMIT_ID=${MPFR_COMMIT_ID}" >> "${GITHUB_ENV}"
+      - name: Cache mpfr
+        uses: actions/cache@v6
+        id: mpfr-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/mpfr
+          key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+      - name: Skip build and check
+        if: ${{ steps.mpfr-cache.outputs.cache-hit == 'true' }}
+        run: echo "MPFR ${MPFR_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/mpfr.log"
+      - name: Cache gmp
+        if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache@v6
+        id: gmp-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/gmp
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
+      - name: Build MPFR
+        if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh mpfr-build
+      - name: Check MPFR
+        if: ${{ steps.mpfr-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh mpfr-check
+      - name: Upload mpfr logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-mpfr-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.LOG_DIR }}
+            ${{ env.BUILD_DIR }}/build-mpfr/config.log
+            ${{ env.BUILD_DIR }}/build-mpfr/**/test-suite.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  build-mpc:
+    needs: [ prepare-build-container, build-gmp, build-mpfr ]
+    runs-on: ubuntu-latest
+    env:
+      GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
+      MPFR_COMMIT_ID: ${{ needs.build-mpfr.outputs.MPFR_COMMIT_ID }}
+      MPC_COMMIT_ID: "0000000000000000000000000000000000000000"
+    outputs:
+      MPC_COMMIT_ID: ${{ steps.commit_id.outputs.MPC_COMMIT_ID }}
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
+          image: ${{ env.ALPINE_IMAGE }}
+      - name: Prepare build logs
+        run: mkdir -p "${LOG_DIR}"
+      - name: Get latest MPC commit id
+        id: commit_id
+        run: |
+          MPC_COMMIT_ID=$(git ls-remote "${MPC_REPOSITORY}" refs/heads/master | awk '{print $1}')
+          if [[ ! "${MPC_COMMIT_ID}" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "Invalid MPC commit id: ${MPC_COMMIT_ID}" >&2
+            exit 1
+          fi
+          echo "${MPC_COMMIT_ID}"
+          echo "MPC_COMMIT_ID=${MPC_COMMIT_ID}" >> "${GITHUB_OUTPUT}"
+          echo "MPC_COMMIT_ID=${MPC_COMMIT_ID}" >> "${GITHUB_ENV}"
+      - name: Cache mpc
+        uses: actions/cache@v6
+        id: mpc-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/mpc
+          key: ${{ env.CACHE_VERSION }}-mpc-${{ env.MPC_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}-mpfr${{ env.MPFR_COMMIT_ID }}
+      - name: Skip build and check
+        if: ${{ steps.mpc-cache.outputs.cache-hit == 'true' }}
+        run: echo "MPC ${MPC_COMMIT_ID} restored from cache" | tee "${LOG_DIR}/mpc.log"
+      - name: Cache gmp
+        if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache@v6
+        id: gmp-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/gmp
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
+      - name: Cache mpfr
+        if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
+        uses: actions/cache@v6
+        id: mpfr-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/mpfr
+          key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+      - name: Build MPC
+        if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh mpc-build
+      - name: Check MPC
+        if: ${{ steps.mpc-cache.outputs.cache-hit != 'true' }}
+        run: bash .github/scripts/run-in-alpine.sh mpc-check
+      - name: Upload mpc logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-mpc-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.LOG_DIR }}
+            ${{ env.BUILD_DIR }}/build-mpc/config.log
+            ${{ env.BUILD_DIR }}/build-mpc/**/test-suite.log
+          if-no-files-found: warn
+          retention-days: 30
+
+  build-gcc-and-push:
+    needs: [ prepare-build-container, make-headers, build-gmp, build-isl, build-mpfr, build-mpc ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      LINUX_COMMIT_ID: ${{ needs.make-headers.outputs.LINUX_COMMIT_ID }}
+      MUSL_COMMIT_ID: ${{ needs.make-headers.outputs.MUSL_COMMIT_ID }}
+      GMP_COMMIT_ID: ${{ needs.build-gmp.outputs.GMP_COMMIT_ID }}
+      ISL_COMMIT_ID: ${{ needs.build-isl.outputs.ISL_COMMIT_ID }}
+      MPFR_COMMIT_ID: ${{ needs.build-mpfr.outputs.MPFR_COMMIT_ID }}
+      MPC_COMMIT_ID: ${{ needs.build-mpc.outputs.MPC_COMMIT_ID }}
+    steps:
+      - name: Checkout workflow files
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - name: Start cached Alpine container
+        uses: ./.github/actions/start-build-container
+        with:
+          cache-path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
+          cache-key: ${{ needs.prepare-build-container.outputs.BUILD_IMAGE_CACHE_KEY }}
+          image: ${{ env.ALPINE_IMAGE }}
+      - name: Prepare build logs
+        run: mkdir -p "${LOG_DIR}"
+      - name: Create directory
+        run: mkdir -vp ${SOURCE_DIR} ${OUTPUT_DIR}/{gmp,mpfr,mpc,isl} ${MPREFIX} ${MSYSROOT}/usr/include ${BUILD_DIR}/{build-binutils,build-gcc,build-musl}
+      - name: Cache linux headers
+        uses: actions/cache@v6
+        id: linux-headers-cache
+        with:
+          path: ${{ env.MSYSROOT }}/usr/include
+          key: ${{ env.CACHE_VERSION }}-linux-headers-${{ env.LINUX_COMMIT_ID }}
+      - name: Cache musl headers
+        uses: actions/cache@v6
+        id: musl-headers-cache
+        with:
+          path: ${{ env.MSYSROOT }}/usr/include
+          key: ${{ env.CACHE_VERSION }}-musl-headers-${{ env.MUSL_COMMIT_ID }}
+      - name: Cache gmp
+        uses: actions/cache@v6
+        id: gmp-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/gmp
+          key: ${{ env.CACHE_VERSION }}-gmp-${{ env.GMP_COMMIT_ID }}
+      - name: Cache isl
+        uses: actions/cache@v6
+        id: isl-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/isl
+          key: ${{ env.CACHE_VERSION }}-isl-${{ env.ISL_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+      - name: Cache mpfr
+        uses: actions/cache@v6
+        id: mpfr-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/mpfr
+          key: ${{ env.CACHE_VERSION }}-mpfr-${{ env.MPFR_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}
+      - name: Cache mpc
+        uses: actions/cache@v6
+        id: mpc-cache
+        with:
+          path: ${{ env.OUTPUT_DIR }}/mpc
+          key: ${{ env.CACHE_VERSION }}-mpc-${{ env.MPC_COMMIT_ID }}-gmp${{ env.GMP_COMMIT_ID }}-mpfr${{ env.MPFR_COMMIT_ID }}
+      - name: Build static musl-hosted toolchain
+        run: bash .github/scripts/run-in-alpine.sh toolchain-build
+      - name: Verify toolchain
+        run: bash .github/scripts/run-in-alpine.sh toolchain-verify
+      - name: Upload
+        if: ${{ github.event_name == 'pull_request' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: aarch64-linux-musl-gcc
+          path: ${{ env.MPREFIX }}/*
+      - name: Checkout publication branch
+        if: ${{ github.event_name != 'pull_request' }}
+        uses: actions/checkout@v7
+        with:
+          ref: main
+          path: push_git_clone
+          fetch-depth: 1
+          token: ${{ secrets.API_TOKEN_GITHUB }}
+      - name: Push
+        if: ${{ github.event_name != 'pull_request' }}
+        run: |
+          exec > >(tee "${LOG_DIR}/publish.log") 2>&1
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cd "${PUSH_CLONE_DIR}"
+          git checkout --orphan new
+          find . -mindepth 1 -maxdepth 1 \
+            ! -name ".git" \
+            ! -name ".github" \
+            ! -name "README.md" \
+            -exec rm -rf -- {} +
+          cp -avf "${MPREFIX}/." "${PUSH_CLONE_DIR}"
+          chmod 0644 README.md .github/workflows/build.yml
+          git branch -D main
+          git branch -m main
+          git add --all --force
+          git commit -s \
+            -m "$("${PUSH_CLONE_DIR}/bin/aarch64-linux-musl-gcc" --version)" \
+            -m "[skip ci]"
+          git push --force origin main
+      - name: Upload all toolchain build logs
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: build-logs-toolchain-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ env.LOG_DIR }}
+            ${{ env.BUILD_DIR }}/**/config.log
+            ${{ env.BUILD_DIR }}/**/*.sum
+            ${{ env.BUILD_DIR }}/**/*.log
+            ${{ env.BUILD_DIR }}/**/REPORT
+          if-no-files-found: warn
+          retention-days: 30
