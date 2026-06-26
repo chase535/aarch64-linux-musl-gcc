@@ -45,3 +45,7 @@ aarch64-linux-musl-gcc -Wl,-Bdynamic hello.c -o hello
   apt install musl
   ln -sf /usr/lib/aarch64-linux-musl/libc.so /lib/ld-musl-aarch64.so.1
   ```
+
+## LTO（Link-Time Optimization）
+
+本工具链**不支持** `-flto` 参数。由于工具链自身为纯静态 musl 链接，GCC 的 LTO linker plugin 需要动态加载（`dlopen`），与静态链接不兼容，因此构建时已通过 `--disable-lto` 关闭。使用 `-flto` 编译会报错。
