@@ -519,9 +519,8 @@ patch_gcc_for_static_default() {
     # because GCC processes options left-to-right and self-specs are
     # processed before user arguments.
     gawk '
-        /driver_self_specs/ { in_specs = 1 }
-        in_specs && /^[[:space:]]*NULL[[:space:]]*$/ {
-            sub(/NULL/, "NULL,")
+        /driver_self_specs\[/ { in_specs = 1 }
+        in_specs && /^[[:space:]]*\};/ {
             print "  \"-static\","
             in_specs = 0
             patched = 1
