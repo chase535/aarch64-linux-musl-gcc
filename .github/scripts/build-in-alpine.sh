@@ -699,6 +699,50 @@ verify_relocatable_toolchain() {
     mv "${relocated_dir}" "${MPREFIX}"
 }
 
+verify_in_alpine_aarch64() {
+    local smoke_dir="${GITHUB_WORKSPACE}/smoke-test"
+    local test_dir
+    test_dir="$(mktemp -d)"
+
+    exec > >(tee "${LOG_DIR}/verify-alpine-aarch64.log") 2>&1
+
+    # Copy smoke test binaries and shared libraries into a staging dir.
+    cp "${smoke_dir}/hello-c" "${test_dir}/"
+    cp "${smoke_dir}/hello-c-dyn" "${test_dir}/"
+    cp "${smoke_dir}/hello-cpp" "${test_dir}/"
+    cp "${smoke_dir}/hello-cpp-dyn" "${test_dir}/"
+    cp "${smoke_dir}/hello-openmp" "${test_dir}/"
+    cp "${smoke_dir}/hello-openmp-dyn" "${test_dir}/"
+    cp "${smoke_dir}/hello-libgcc" "${test_dir}/"
+    cp "${smoke_dir}/hello-libgcc-dyn" "${test_dir}/"
+    mkdir -p "${test_dir}/lib"
+    cp -a "${MPREFIX}/${TARGET}/sysroot/lib/"* "${test_dir}/lib/" 2>/dev/null || true
+    cp -a "${MPREFIX}/${TARGET}/sysroot/usr/lib/"*.so* "${test_dir}/lib/" 2>/dev/null || true
+
+    # Run in Alpine aarch64 container (uses QEMU binfmt_misc).
+    docker run --rm \
+        --platform linux/arm64 \
+        -v "${test_dir}:/test:ro" \
+        alpine:3.24 sh -c '
+            set -e
+            echo "=== Static binaries ==="
+            /test/hello-c | grep -q "^ok$" && echo "hello-c: OK"
+            /test/hello-cpp | grep -q "^ok$" && echo "hello-cpp: OK"
+            OMP_NUM_THREADS=2 /test/hello-openmp && echo "hello-openmp: OK"
+            /test/hello-libgcc && echo "hello-libgcc: OK"
+
+            echo "=== Dynamic binaries ==="
+            export LD_LIBRARY_PATH=/test/lib
+            /test/hello-c-dyn | grep -q "^ok$" && echo "hello-c-dyn: OK"
+            /test/hello-cpp-dyn | grep -q "^ok$" && echo "hello-cpp-dyn: OK"
+            OMP_NUM_THREADS=2 /test/hello-openmp-dyn && echo "hello-openmp-dyn: OK"
+            /test/hello-libgcc-dyn && echo "hello-libgcc-dyn: OK"
+            echo "=== All Alpine aarch64 tests passed ==="
+        '
+
+    rm -rf "${test_dir}"
+}
+
 prepare_toolchain_path() {
     export PATH="${MPREFIX}/bin:${PATH}"
 }
@@ -743,6 +787,7 @@ verify_toolchain() {
     prepare_toolchain_path
     verify_static_host
     verify_relocatable_toolchain
+    verify_in_alpine_aarch64
 }
 
 case "${MODE}" in
