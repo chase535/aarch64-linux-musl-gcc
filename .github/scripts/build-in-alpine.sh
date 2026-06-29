@@ -518,7 +518,7 @@ patch_gcc_for_static_default() {
     # to static linking.  User-supplied -shared / -Bdynamic override it
     # because GCC processes options left-to-right and self-specs are
     # processed before user arguments.
-    awk '
+    gawk '
         /driver_self_specs/ { in_specs = 1 }
         in_specs && /^[[:space:]]*NULL[[:space:]]*$/ {
             sub(/NULL/, "NULL,")
