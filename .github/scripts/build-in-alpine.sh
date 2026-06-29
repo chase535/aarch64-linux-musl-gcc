@@ -643,38 +643,7 @@ verify_relocatable_toolchain() {
     printf 'int main(void) { volatile __int128 a = ((__int128) 1 << 100) + 7; volatile __int128 b = 11; return a / b == 0; }\n' \
         > "${smoke_dir}/libgcc.c"
 
-    # Dynamically linked: verify binary format, dynamic linker, and execution
-    "${cc}" -Bdynamic "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
-    "${cxx}" -Bdynamic "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
-    "${cc}" -Bdynamic -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
-    "${cc}" -Bdynamic "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
-
-    file "${smoke_dir}/hello-c-dyn" | grep -q 'ARM aarch64'
-    file "${smoke_dir}/hello-cpp-dyn" | grep -q 'ARM aarch64'
-    file "${smoke_dir}/hello-openmp-dyn" | grep -q 'ARM aarch64'
-    file "${smoke_dir}/hello-libgcc-dyn" | grep -q 'ARM aarch64'
-    readelf -lW "${smoke_dir}/hello-c-dyn" | grep -q 'INTERP'
-    readelf -lW "${smoke_dir}/hello-cpp-dyn" | grep -q 'INTERP'
-    readelf -lW "${smoke_dir}/hello-openmp-dyn" | grep -q 'INTERP'
-    readelf -lW "${smoke_dir}/hello-libgcc-dyn" | grep -q 'INTERP'
-
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-c-dyn" |
-        grep '^ok$'
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-cpp-dyn" |
-        grep '^ok$'
-    MSYSROOT="${expected_sysroot}" \
-        OMP_NUM_THREADS=2 \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-openmp-dyn"
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-libgcc-dyn"
-
-    # Statically linked (default via DRIVER_SELF_SPECS): verify binary format and execution
+    # Statically linked (default — .so removed from sysroot): verify binary format and execution
     "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
     "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
     "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
