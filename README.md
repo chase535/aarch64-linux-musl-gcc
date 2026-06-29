@@ -10,7 +10,7 @@
 
 ## 静态链接
 
-交叉编译器默认生成**静态链接**的 ELF 文件。构建时已通过 patch GCC 源码（`DRIVER_SELF_SPECS` 注入 `-static`）实现默认静态链接，无需额外参数。
+交叉编译器默认生成**静态链接**的 ELF 文件。构建完成后已从 sysroot 中移除 `.so` 共享库文件，链接器找不到共享库时自动回退到 `.a` 静态库。
 
 ### 为什么默认静态链接
 
@@ -23,14 +23,15 @@
 
 ### 如需动态链接
 
-传递 `-shared` 或 `-Bdynamic` 可覆盖默认的静态链接：
+sysroot 中的 `.so` 文件在构建后被移除。需要动态链接时，先从 musl 源码恢复 `libc.so`：
 
 ```bash
-# 动态链接的共享库
-aarch64-linux-musl-gcc -shared -fPIC foo.c -o libfoo.so
+# 从 musl 源码重新安装 libc.so
+make -C <musl-source> ARCH=aarch64 DESTDIR=<sysroot> install
 
-# 动态链接的可执行文件
-aarch64-linux-musl-gcc -Bdynamic hello.c -o hello
+# 动态链接
+aarch64-linux-musl-gcc -shared -fPIC foo.c -o libfoo.so
+aarch64-linux-musl-gcc hello.c -o hello   # 动态链接的可执行文件
 ```
 
 动态链接的产物**只能在以下环境中运行**：

@@ -506,68 +506,6 @@ build_target_libraries() {
     make install-strip-target -j"${JOBS}"
 }
 
-patch_gcc_for_static_default() {
-    local gcc_cc="${SOURCE_DIR}/gcc/gcc/gcc.cc"
-
-    if [[ ! -f "${gcc_cc}" ]]; then
-        echo "ERROR: gcc.cc not found at ${gcc_cc}" >&2
-        exit 1
-    fi
-
-    # Add "-static" to GCC's DRIVER_SELF_SPECS so the driver defaults
-    # to static linking.  User-supplied -shared / -Bdynamic override it
-    # because GCC processes options left-to-right and self-specs are
-    # processed before user arguments.
-    # Step 1: Add trailing comma to the last entry in the array.
-    # Find the line before "};" inside driver_self_specs and append ",".
-    gawk '
-        /static.*driver_self_specs\[/ { in_specs = 1 }
-        in_specs && /^};/ {
-            in_specs = 0
-            need_comma = 1
-        }
-        {
-            if (need_comma && last !~ /,$/) {
-                sub(/"$/, "\",", last)
-            }
-            if (NR > 1) print last
-            last = $0
-            need_comma = 0
-        }
-        END { print }
-    ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
-
-    # Step 2: Insert "-static" before the closing brace.
-    gawk '
-        /static.*driver_self_specs\[/ { in_specs = 1 }
-        in_specs && /^};/ {
-            print "  \"-static\","
-            in_specs = 0
-            patched = 1
-        }
-        { print }
-        END { if (!patched) exit 1 }
-    ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
-
-    # Extract, display, and verify the patched array.
-    local specs_section
-    specs_section="$(gawk '
-        /static.*driver_self_specs\[/ { show = 1 }
-        show { print }
-        show && /^};/ { exit }
-    ' "${gcc_cc}")"
-
-    echo "--- driver_self_specs after patch ---"
-    echo "${specs_section}"
-    echo "--- end ---"
-
-    if ! echo "${specs_section}" | grep -q '"-static"'; then
-        echo "ERROR: Failed to patch gcc.cc — driver_self_specs format may have changed" >&2
-        exit 1
-    fi
-    echo "Patched gcc.cc: added -static to DRIVER_SELF_SPECS"
-}
-
 verify_static_host() {
     local count=0
     local executable
@@ -707,7 +645,6 @@ build_toolchain() {
     prepare_toolchain_path
 
     clone_toolchain_sources
-    patch_gcc_for_static_default
     configure_binutils
     build_binutils
     configure_gcc
@@ -715,6 +652,11 @@ build_toolchain() {
     build_static_libgcc
     build_musl
     build_target_libraries
+
+    # Remove .so files from sysroot so user programs default to static.
+    # libstdc++ is already built (uses libc.so during build).
+    # ld-musl-aarch64.so.1 is kept for run-aarch64-musl.sh.
+    find "${MSYSROOT}/usr/lib" -name '*.so' -o -name '*.so.*' | xargs rm -f
 }
 
 verify_toolchain() {
