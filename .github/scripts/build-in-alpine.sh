@@ -549,25 +549,23 @@ patch_gcc_for_static_default() {
         END { if (!patched) exit 1 }
     ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
 
-    # Show the patched array for debugging (from definition to first };\n).
-    echo "--- driver_self_specs after patch ---"
-    gawk '
+    # Extract, display, and verify the patched array.
+    local specs_section
+    specs_section="$(gawk '
         /static.*driver_self_specs\[/ { show = 1 }
         show { print }
         show && /^};/ { exit }
-    ' "${gcc_cc}"
+    ' "${gcc_cc}")"
+
+    echo "--- driver_self_specs after patch ---"
+    echo "${specs_section}"
     echo "--- end ---"
 
-    # Verify "-static" exists and is within the array (line number between
-    # the array definition and the next top-level definition).
-    local static_line array_start
-    static_line="$(grep -n '"-static"' "${gcc_cc}" | head -1 | cut -d: -f1)"
-    array_start="$(grep -n 'static.*driver_self_specs\[' "${gcc_cc}" | head -1 | cut -d: -f1)"
-    if [[ -z "${static_line}" ]] || [[ -z "${array_start}" ]] || (( static_line <= array_start )); then
-        echo "ERROR: Failed to patch gcc.cc — -static not found after array definition" >&2
+    if ! echo "${specs_section}" | grep -q '"-static"'; then
+        echo "ERROR: Failed to patch gcc.cc — driver_self_specs format may have changed" >&2
         exit 1
     fi
-    echo "Patched gcc.cc: added -static to DRIVER_SELF_SPECS (line ${static_line})"
+    echo "Patched gcc.cc: added -static to DRIVER_SELF_SPECS"
 }
 
 verify_static_host() {
