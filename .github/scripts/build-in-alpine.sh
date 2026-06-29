@@ -507,7 +507,7 @@ build_target_libraries() {
 }
 
 patch_gcc_for_static_default() {
-    local gcc_cc="${SOURCE_DIR}/gcc/gcc/gcc.cc"
+    local gcc_cc="${SOURCE_DIR}/gcc/gcc.cc"
 
     if [[ ! -f "${gcc_cc}" ]]; then
         echo "ERROR: gcc.cc not found at ${gcc_cc}" >&2
@@ -521,7 +521,7 @@ patch_gcc_for_static_default() {
     # Step 1: Add trailing comma to the last entry in the array.
     # Find the line before "};" inside driver_self_specs and append ",".
     gawk '
-        /driver_self_specs\[/ { in_specs = 1 }
+        /static.*driver_self_specs\[/ { in_specs = 1 }
         in_specs && /^};/ {
             in_specs = 0
             need_comma = 1
@@ -539,7 +539,7 @@ patch_gcc_for_static_default() {
 
     # Step 2: Insert "-static" before the closing brace.
     gawk '
-        /driver_self_specs\[/ { in_specs = 1 }
+        /static.*driver_self_specs\[/ { in_specs = 1 }
         in_specs && /^};/ {
             print "  \"-static\","
             in_specs = 0
