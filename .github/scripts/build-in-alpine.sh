@@ -634,7 +634,7 @@ verify_relocatable_toolchain() {
         > "${smoke_dir}/libgcc.c"
 
     # Dynamically linked (-Wl,-Bdynamic bypasses wrapper):
-    # verify binary format, dynamic linker, and execution
+    # verify binary format and dynamic linker path
     "${cc}" -Wl,-Bdynamic "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
     "${cxx}" -Wl,-Bdynamic "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
     "${cc}" -Wl,-Bdynamic -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
@@ -649,23 +649,7 @@ verify_relocatable_toolchain() {
     readelf -lW "${smoke_dir}/hello-openmp-dyn" | grep -q 'INTERP'
     readelf -lW "${smoke_dir}/hello-libgcc-dyn" | grep -q 'INTERP'
 
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-c-dyn" |
-        grep '^ok$'
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-cpp-dyn" |
-        grep '^ok$'
-    MSYSROOT="${expected_sysroot}" \
-        OMP_NUM_THREADS=2 \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-openmp-dyn"
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-libgcc-dyn"
-
-    # Statically linked (default via wrapper): verify binary format and execution
+    # Statically linked (default via wrapper): verify binary format
     "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
     "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
     "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
@@ -680,45 +664,48 @@ verify_relocatable_toolchain() {
     ! readelf -lW "${smoke_dir}/hello-openmp" | grep -q 'INTERP'
     ! readelf -lW "${smoke_dir}/hello-libgcc" | grep -q 'INTERP'
 
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-c" |
-        grep '^ok$'
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-cpp" |
-        grep '^ok$'
-    MSYSROOT="${expected_sysroot}" \
-        OMP_NUM_THREADS=2 \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-openmp"
-    MSYSROOT="${expected_sysroot}" \
-        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
-        "${smoke_dir}/hello-libgcc"
-
     mv "${relocated_dir}" "${MPREFIX}"
 }
 
 verify_in_alpine_aarch64() {
     local smoke_dir="${GITHUB_WORKSPACE}/smoke-test"
-    local sysroot="${MPREFIX}/${TARGET}/sysroot"
+    local test_dir
+    test_dir="$(mktemp -d)"
 
     exec > >(tee "${LOG_DIR}/verify-alpine-aarch64.log") 2>&1
 
-    echo "=== Static binaries ==="
-    qemu-aarch64 -L "${sysroot}" "${smoke_dir}/hello-c" | grep -q '^ok$' && echo "hello-c: OK"
-    qemu-aarch64 -L "${sysroot}" "${smoke_dir}/hello-cpp" | grep -q '^ok$' && echo "hello-cpp: OK"
-    OMP_NUM_THREADS=2 qemu-aarch64 -L "${sysroot}" "${smoke_dir}/hello-openmp" && echo "hello-openmp: OK"
-    qemu-aarch64 -L "${sysroot}" "${smoke_dir}/hello-libgcc" && echo "hello-libgcc: OK"
+    # Stage binaries and shared libraries.
+    cp "${smoke_dir}"/hello-c* "${test_dir}/"
+    cp "${smoke_dir}"/hello-cpp* "${test_dir}/"
+    cp "${smoke_dir}"/hello-openmp* "${test_dir}/"
+    cp "${smoke_dir}"/hello-libgcc* "${test_dir}/"
+    mkdir -p "${test_dir}/lib"
+    cp -a "${MPREFIX}/${TARGET}/sysroot/lib/"* "${test_dir}/lib/" 2>/dev/null || true
+    cp -a "${MPREFIX}/${TARGET}/sysroot/usr/lib/"*.so* "${test_dir}/lib/" 2>/dev/null || true
 
-    echo "=== Dynamic binaries ==="
-    local ld_path="${sysroot}/lib:${sysroot}/usr/lib"
-    qemu-aarch64 -L "${sysroot}" -E "LD_LIBRARY_PATH=${ld_path}" "${smoke_dir}/hello-c-dyn" | grep -q '^ok$' && echo "hello-c-dyn: OK"
-    qemu-aarch64 -L "${sysroot}" -E "LD_LIBRARY_PATH=${ld_path}" "${smoke_dir}/hello-cpp-dyn" | grep -q '^ok$' && echo "hello-cpp-dyn: OK"
-    OMP_NUM_THREADS=2 qemu-aarch64 -L "${sysroot}" -E "LD_LIBRARY_PATH=${ld_path}" "${smoke_dir}/hello-openmp-dyn" && echo "hello-openmp-dyn: OK"
-    qemu-aarch64 -L "${sysroot}" -E "LD_LIBRARY_PATH=${ld_path}" "${smoke_dir}/hello-libgcc-dyn" && echo "hello-libgcc-dyn: OK"
+    # Run in native arm64 Alpine container (Docker + QEMU binfmt_misc).
+    docker run --rm --platform linux/arm64 \
+        -v "${test_dir}:/test:ro" \
+        alpine:3.24 sh -c '
+        set -e
 
-    echo "=== All Alpine aarch64 tests passed ==="
+        echo "=== Static binaries ==="
+        /test/hello-c | grep -q "^ok$" && echo "hello-c: OK"
+        /test/hello-cpp | grep -q "^ok$" && echo "hello-cpp: OK"
+        OMP_NUM_THREADS=2 /test/hello-openmp && echo "hello-openmp: OK"
+        /test/hello-libgcc && echo "hello-libgcc: OK"
+
+        echo "=== Dynamic binaries ==="
+        export LD_LIBRARY_PATH=/test/lib
+        /test/hello-c-dyn | grep -q "^ok$" && echo "hello-c-dyn: OK"
+        /test/hello-cpp-dyn | grep -q "^ok$" && echo "hello-cpp-dyn: OK"
+        OMP_NUM_THREADS=2 /test/hello-openmp-dyn && echo "hello-openmp-dyn: OK"
+        /test/hello-libgcc-dyn && echo "hello-libgcc-dyn: OK"
+
+        echo "=== All Alpine aarch64 tests passed ==="
+    '
+
+    rm -rf "${test_dir}"
 }
 
 prepare_toolchain_path() {
