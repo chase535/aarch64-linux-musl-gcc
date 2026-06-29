@@ -529,12 +529,15 @@ patch_gcc_for_static_default() {
         END { if (!patched) exit 1 }
     ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
 
+    local specs_section
+    specs_section="$(sed -n '/driver_self_specs\[/,/\};/p' "${gcc_cc}")"
+
     echo "--- driver_self_specs after patch ---"
-    sed -n '/driver_self_specs\[/,/\};/p' "${gcc_cc}"
+    echo "${specs_section}"
     echo "--- end ---"
 
     # Verify the patch actually took effect within the array.
-    if ! sed -n '/driver_self_specs\[/,/\};/p' "${gcc_cc}" | grep -q '"-static"'; then
+    if ! echo "${specs_section}" | grep -q '"-static"'; then
         echo "ERROR: Failed to patch gcc.cc — driver_self_specs format may have changed" >&2
         echo "Check ${gcc_cc} and update the patch logic" >&2
         exit 1
