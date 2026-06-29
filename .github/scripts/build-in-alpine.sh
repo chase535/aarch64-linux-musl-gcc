@@ -509,6 +509,11 @@ build_target_libraries() {
 patch_gcc_for_static_default() {
     local gcc_cc="${SOURCE_DIR}/gcc/gcc.cc"
 
+    if [[ ! -f "${gcc_cc}" ]]; then
+        echo "ERROR: gcc.cc not found at ${gcc_cc}" >&2
+        exit 1
+    fi
+
     # Add "-static" to GCC's DRIVER_SELF_SPECS so the driver defaults
     # to static linking.  User-supplied -shared / -Bdynamic override it
     # because GCC processes options left-to-right and self-specs are
@@ -519,9 +524,18 @@ patch_gcc_for_static_default() {
             sub(/NULL/, "NULL,")
             print "  \"-static\","
             in_specs = 0
+            patched = 1
         }
         { print }
+        END { if (!patched) exit 1 }
     ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
+
+    # Verify the patch actually took effect.
+    if ! grep -q '"-static"' "${gcc_cc}"; then
+        echo "ERROR: Failed to patch gcc.cc — driver_self_specs format may have changed" >&2
+        echo "Check ${gcc_cc} and update the patch logic" >&2
+        exit 1
+    fi
     echo "Patched gcc.cc: added -static to DRIVER_SELF_SPECS"
 }
 
