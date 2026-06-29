@@ -684,9 +684,10 @@ verify_in_alpine_aarch64() {
     cp -a "${MPREFIX}/${TARGET}/sysroot/usr/lib/"*.so* "${test_dir}/lib/" 2>/dev/null || true
 
     # Run in native arm64 Alpine container (Docker + QEMU binfmt_misc).
+    local arm64_image="${ALPINE_ARM64_IMAGE:-alpine:3.24}"
     docker run --rm --platform linux/arm64 \
         -v "${test_dir}:/test:ro" \
-        alpine:3.24 sh -c '
+        "${arm64_image}" sh -c '
         set -e
 
         echo "=== Static binaries ==="

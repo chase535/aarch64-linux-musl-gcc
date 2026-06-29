@@ -99,6 +99,7 @@ DOCKER_ARGS=(
     --env "LOG_DIR=${LOG_DIR}"
     --env "MPREFIX=${MPREFIX}"
     --env "MSYSROOT=${MSYSROOT}"
+    --env "ALPINE_ARM64_IMAGE=${ALPINE_ARM64_IMAGE:-}"
 )
 for name in "${MODE_ENV_VARS[@]}"; do
     DOCKER_ARGS+=(--env "${name}=${!name}")
