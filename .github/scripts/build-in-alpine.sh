@@ -645,11 +645,20 @@ verify_relocatable_toolchain() {
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
         "${smoke_dir}/hello-libgcc-dyn"
 
-    # Statically linked (default via DRIVER_SELF_SPECS): verify execution via QEMU
+    # Statically linked (default via DRIVER_SELF_SPECS): verify binary format and execution
     "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
     "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
     "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
     "${cc}" "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc"
+
+    file "${smoke_dir}/hello-c" | grep -q 'statically linked'
+    file "${smoke_dir}/hello-cpp" | grep -q 'statically linked'
+    file "${smoke_dir}/hello-openmp" | grep -q 'statically linked'
+    file "${smoke_dir}/hello-libgcc" | grep -q 'statically linked'
+    ! readelf -lW "${smoke_dir}/hello-c" | grep -q 'INTERP'
+    ! readelf -lW "${smoke_dir}/hello-cpp" | grep -q 'INTERP'
+    ! readelf -lW "${smoke_dir}/hello-openmp" | grep -q 'INTERP'
+    ! readelf -lW "${smoke_dir}/hello-libgcc" | grep -q 'INTERP'
 
     MSYSROOT="${expected_sysroot}" \
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
