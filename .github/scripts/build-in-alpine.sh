@@ -614,22 +614,38 @@ verify_relocatable_toolchain() {
     printf 'int main(void) { volatile __int128 a = ((__int128) 1 << 100) + 7; volatile __int128 b = 11; return a / b == 0; }\n' \
         > "${smoke_dir}/libgcc.c"
 
-    # Dynamically linked: verify binary format and dynamic linker path
+    # Dynamically linked: verify binary format, dynamic linker, and execution
     "${cc}" -Bdynamic "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
     "${cxx}" -Bdynamic "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
     "${cc}" -Bdynamic -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
     "${cc}" -Bdynamic "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
 
-    file "${smoke_dir}/hello-c-dyn" | grep 'ARM aarch64' >/dev/null
-    file "${smoke_dir}/hello-cpp-dyn" | grep 'ARM aarch64' >/dev/null
-    file "${smoke_dir}/hello-openmp-dyn" | grep 'ARM aarch64' >/dev/null
-    file "${smoke_dir}/hello-libgcc-dyn" | grep 'ARM aarch64' >/dev/null
-    readelf -l "${smoke_dir}/hello-c-dyn" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
-    readelf -l "${smoke_dir}/hello-cpp-dyn" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
-    readelf -l "${smoke_dir}/hello-openmp-dyn" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
-    readelf -l "${smoke_dir}/hello-libgcc-dyn" | grep '/lib/ld-musl-aarch64.so.1' >/dev/null
+    file "${smoke_dir}/hello-c-dyn" | grep -q 'ARM aarch64'
+    file "${smoke_dir}/hello-cpp-dyn" | grep -q 'ARM aarch64'
+    file "${smoke_dir}/hello-openmp-dyn" | grep -q 'ARM aarch64'
+    file "${smoke_dir}/hello-libgcc-dyn" | grep -q 'ARM aarch64'
+    readelf -l "${smoke_dir}/hello-c-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
+    readelf -l "${smoke_dir}/hello-cpp-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
+    readelf -l "${smoke_dir}/hello-openmp-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
+    readelf -l "${smoke_dir}/hello-libgcc-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
 
-    # Statically linked (wrapper injects -static automatically): verify execution via QEMU
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-c-dyn" |
+        grep '^ok$'
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-cpp-dyn" |
+        grep '^ok$'
+    MSYSROOT="${expected_sysroot}" \
+        OMP_NUM_THREADS=2 \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-openmp-dyn"
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-libgcc-dyn"
+
+    # Statically linked (default via DRIVER_SELF_SPECS): verify execution via QEMU
     "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
     "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
     "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
@@ -638,11 +654,11 @@ verify_relocatable_toolchain() {
     MSYSROOT="${expected_sysroot}" \
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
         "${smoke_dir}/hello-c" |
-        grep '^ok$' >/dev/null
+        grep '^ok$'
     MSYSROOT="${expected_sysroot}" \
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
         "${smoke_dir}/hello-cpp" |
-        grep '^ok$' >/dev/null
+        grep '^ok$'
     MSYSROOT="${expected_sysroot}" \
         OMP_NUM_THREADS=2 \
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
