@@ -10,7 +10,7 @@
 
 ## 静态链接
 
-交叉编译器默认生成**静态链接**的 ELF 文件。构建完成后已从 sysroot 中移除 `.so` 共享库文件，链接器找不到共享库时自动回退到 `.a` 静态库。
+交叉编译器默认生成**静态链接**的 ELF 文件。`gcc`、`g++`、`cc`、`c++` 均为 wrapper 脚本，自动在参数前注入 `-static`，无需手动指定。
 
 ### 为什么默认静态链接
 
@@ -23,15 +23,14 @@
 
 ### 如需动态链接
 
-sysroot 中的 `.so` 文件在构建后被移除。需要动态链接时，先从 musl 源码恢复 `libc.so`：
+传递 `-shared` 时，wrapper 不会注入 `-static`：
 
 ```bash
-# 从 musl 源码重新安装 libc.so
-make -C <musl-source> ARCH=aarch64 DESTDIR=<sysroot> install
-
-# 动态链接
+# 动态链接的共享库
 aarch64-linux-musl-gcc -shared -fPIC foo.c -o libfoo.so
-aarch64-linux-musl-gcc hello.c -o hello   # 动态链接的可执行文件
+
+# 动态链接的可执行文件：直接调用 .real 二进制绕过 wrapper
+aarch64-linux-musl-gcc.real hello.c -o hello
 ```
 
 动态链接的产物**只能在以下环境中运行**：

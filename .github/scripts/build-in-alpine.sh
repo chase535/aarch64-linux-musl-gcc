@@ -494,8 +494,15 @@ build_musl() {
         DESTDIR="${MSYSROOT}" \
         install \
         -j"${JOBS}"
-    rm -f "${MSYSROOT}/lib/ld-musl-aarch64.so.1"
-    cp -a "${MSYSROOT}/usr/lib/libc.so" "${MSYSROOT}/lib/ld-musl-aarch64.so.1"
+    # Replace the linker script (GROUP(AS_NEEDED(libc.a ...))) with a
+    # real shared object built from the PIC static archive.  The linker
+    # script forces libc.a even for dynamic linking; a real .so lets
+    # users build shared libraries and dynamically linked executables.
+    rm -f "${MSYSROOT}/usr/lib/libc.so"
+    "${TARGET}-gcc" \
+        -shared \
+        -Wl,--whole-archive "${MSYSROOT}/usr/lib/libc.a" -Wl,--no-whole-archive \
+        -o "${MSYSROOT}/usr/lib/libc.so"
 }
 
 build_target_libraries() {
@@ -504,6 +511,51 @@ build_target_libraries() {
     make -C "${TARGET}/libgcc" distclean -j"${JOBS}"
     make enable_shared=yes all-target -j"${JOBS}"
     make install-strip-target -j"${JOBS}"
+}
+
+install_static_wrappers() {
+    local bin_dir="${MPREFIX}/bin"
+    local real_bin
+    local alias_name
+    local name
+
+    for name in gcc g++; do
+        real_bin="${bin_dir}/${TARGET}-${name}"
+        if [[ ! -f "${real_bin}" ]]; then
+            continue
+        fi
+
+        # Move real binary aside and install wrapper in its place.
+        mv "${real_bin}" "${real_bin}.real"
+        cat > "${real_bin}" <<WRAPPER
+#!/bin/sh
+# Inject -static unless the user explicitly builds shared objects.
+SELF="\$(dirname "\$0")/${TARGET}-${name}.real"
+add_static=1
+for arg in "\$@"; do
+    case "\$arg" in
+        -shared|-Bdynamic) add_static=0; break ;;
+    esac
+done
+if [ "\$add_static" -eq 1 ]; then
+    exec "\$SELF" -static "\$@"
+else
+    exec "\$SELF" "\$@"
+fi
+WRAPPER
+        chmod +x "${real_bin}"
+        echo "Installed static-default wrapper: ${TARGET}-${name}"
+
+        # Install a copy for the alias (gcc→cc, g++→c++).
+        case "${name}" in
+            gcc) alias_name="cc" ;;
+            g++) alias_name="c++" ;;
+        esac
+        rm -f "${bin_dir}/${TARGET}-${alias_name}"
+        cp "${real_bin}" "${bin_dir}/${TARGET}-${alias_name}"
+        chmod +x "${bin_dir}/${TARGET}-${alias_name}"
+        echo "Installed static-default wrapper: ${TARGET}-${alias_name} (copy of ${TARGET}-${name})"
+    done
 }
 
 verify_static_host() {
@@ -564,6 +616,8 @@ verify_relocatable_toolchain() {
 
     cc="${relocated_dir}/bin/${TARGET}-gcc"
     cxx="${relocated_dir}/bin/${TARGET}-g++"
+    cc_real="${relocated_dir}/bin/${TARGET}-gcc.real"
+    cxx_real="${relocated_dir}/bin/${TARGET}-g++.real"
     expected_sysroot="$(realpath "${relocated_dir}/${TARGET}/sysroot")"
     actual_sysroot="$(realpath "$("${cc}" -print-sysroot)")"
     if [[ "${actual_sysroot}" != "${expected_sysroot}" ]]; then
@@ -581,7 +635,39 @@ verify_relocatable_toolchain() {
     printf 'int main(void) { volatile __int128 a = ((__int128) 1 << 100) + 7; volatile __int128 b = 11; return a / b == 0; }\n' \
         > "${smoke_dir}/libgcc.c"
 
-    # Statically linked (default — .so removed from sysroot): verify binary format and execution
+    # Dynamically linked (use .real to bypass wrapper):
+    # verify binary format, dynamic linker, and execution
+    "${cc_real}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
+    "${cxx_real}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
+    "${cc_real}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
+    "${cc_real}" "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
+
+    file "${smoke_dir}/hello-c-dyn" | grep -q 'ARM aarch64'
+    file "${smoke_dir}/hello-cpp-dyn" | grep -q 'ARM aarch64'
+    file "${smoke_dir}/hello-openmp-dyn" | grep -q 'ARM aarch64'
+    file "${smoke_dir}/hello-libgcc-dyn" | grep -q 'ARM aarch64'
+    readelf -lW "${smoke_dir}/hello-c-dyn" | grep -q 'INTERP'
+    readelf -lW "${smoke_dir}/hello-cpp-dyn" | grep -q 'INTERP'
+    readelf -lW "${smoke_dir}/hello-openmp-dyn" | grep -q 'INTERP'
+    readelf -lW "${smoke_dir}/hello-libgcc-dyn" | grep -q 'INTERP'
+
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-c-dyn" |
+        grep '^ok$'
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-cpp-dyn" |
+        grep '^ok$'
+    MSYSROOT="${expected_sysroot}" \
+        OMP_NUM_THREADS=2 \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-openmp-dyn"
+    MSYSROOT="${expected_sysroot}" \
+        "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
+        "${smoke_dir}/hello-libgcc-dyn"
+
+    # Statically linked (default via wrapper): verify binary format and execution
     "${cc}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c"
     "${cxx}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp"
     "${cc}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp"
@@ -652,11 +738,7 @@ build_toolchain() {
     build_static_libgcc
     build_musl
     build_target_libraries
-
-    # Remove .so files from sysroot so user programs default to static.
-    # libstdc++ is already built (uses libc.so during build).
-    # ld-musl-aarch64.so.1 is kept for run-aarch64-musl.sh.
-    find "${MSYSROOT}/usr/lib" -name '*.so' -o -name '*.so.*' | xargs rm -f
+    install_static_wrappers
 }
 
 verify_toolchain() {
