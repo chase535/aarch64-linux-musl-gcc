@@ -10,7 +10,7 @@
 
 ## 静态链接
 
-交叉编译器默认生成**静态链接**的 ELF 文件。`gcc`、`g++`、`cc`、`c++` 均为 wrapper 脚本，自动在参数前注入 `-static`，无需手动指定。
+交叉编译器默认生成**静态链接**的 ELF 文件。构建时已通过 patch GCC 源码（`DRIVER_SELF_SPECS` 注入 `-static`）实现默认静态链接，无需额外参数。
 
 ### 为什么默认静态链接
 
@@ -23,7 +23,7 @@
 
 ### 如需动态链接
 
-传递 `-shared` 或 `-Bdynamic` 时，wrapper 不会注入 `-static`：
+传递 `-shared` 或 `-Bdynamic` 可覆盖默认的静态链接：
 
 ```bash
 # 动态链接的共享库

@@ -506,51 +506,23 @@ build_target_libraries() {
     make install-strip-target -j"${JOBS}"
 }
 
-install_static_wrappers() {
-    local bin_dir="${MPREFIX}/bin"
-    local real_bin
-    local alias_name
-    local name
+patch_gcc_for_static_default() {
+    local gcc_cc="${SOURCE_DIR}/gcc/gcc.cc"
 
-    # gcc→cc, g++→c++
-    for name in gcc g++; do
-        real_bin="${bin_dir}/${TARGET}-${name}"
-        if [[ ! -f "${real_bin}" ]]; then
-            continue
-        fi
-
-        # Move real binary aside and install wrapper in its place.
-        mv "${real_bin}" "${real_bin}.real"
-        cat > "${real_bin}" <<'WRAPPER'
-#!/bin/sh
-# Inject -static unless the user explicitly builds shared objects.
-SELF="$(dirname "$0")/REPLACE_ME.real"
-add_static=1
-for arg in "$@"; do
-    case "$arg" in
-        -shared|-Bdynamic) add_static=0; break ;;
-    esac
-done
-if [ "$add_static" -eq 1 ]; then
-    exec "$SELF" -static "$@"
-else
-    exec "$SELF" "$@"
-fi
-WRAPPER
-        sed -i "s|REPLACE_ME|${TARGET}-${name}|" "${real_bin}"
-        chmod +x "${real_bin}"
-        echo "Installed static-default wrapper: ${TARGET}-${name}"
-
-        # Install a copy for the alias (gcc→cc, g++→c++).
-        case "${name}" in
-            gcc) alias_name="cc" ;;
-            g++) alias_name="c++" ;;
-        esac
-        rm -f "${bin_dir}/${TARGET}-${alias_name}"
-        cp "${real_bin}" "${bin_dir}/${TARGET}-${alias_name}"
-        chmod +x "${bin_dir}/${TARGET}-${alias_name}"
-        echo "Installed static-default wrapper: ${TARGET}-${alias_name} (copy of ${TARGET}-${name})"
-    done
+    # Add "-static" to GCC's DRIVER_SELF_SPECS so the driver defaults
+    # to static linking.  User-supplied -shared / -Bdynamic override it
+    # because GCC processes options left-to-right and self-specs are
+    # processed before user arguments.
+    awk '
+        /driver_self_specs/ { in_specs = 1 }
+        in_specs && /^[[:space:]]*NULL[[:space:]]*$/ {
+            sub(/NULL/, "NULL,")
+            print "  \"-static\","
+            in_specs = 0
+        }
+        { print }
+    ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
+    echo "Patched gcc.cc: added -static to DRIVER_SELF_SPECS"
 }
 
 verify_static_host() {
@@ -698,6 +670,7 @@ build_toolchain() {
     prepare_toolchain_path
 
     clone_toolchain_sources
+    patch_gcc_for_static_default
     configure_binutils
     build_binutils
     configure_gcc
@@ -705,7 +678,6 @@ build_toolchain() {
     build_static_libgcc
     build_musl
     build_target_libraries
-    install_static_wrappers
 }
 
 verify_toolchain() {
