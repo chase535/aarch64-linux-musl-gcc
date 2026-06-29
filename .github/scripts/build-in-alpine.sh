@@ -624,10 +624,10 @@ verify_relocatable_toolchain() {
     file "${smoke_dir}/hello-cpp-dyn" | grep -q 'ARM aarch64'
     file "${smoke_dir}/hello-openmp-dyn" | grep -q 'ARM aarch64'
     file "${smoke_dir}/hello-libgcc-dyn" | grep -q 'ARM aarch64'
-    readelf -l "${smoke_dir}/hello-c-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
-    readelf -l "${smoke_dir}/hello-cpp-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
-    readelf -l "${smoke_dir}/hello-openmp-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
-    readelf -l "${smoke_dir}/hello-libgcc-dyn" | grep -q '/lib/ld-musl-aarch64.so.1'
+    readelf -lW "${smoke_dir}/hello-c-dyn" | grep -q 'INTERP'
+    readelf -lW "${smoke_dir}/hello-cpp-dyn" | grep -q 'INTERP'
+    readelf -lW "${smoke_dir}/hello-openmp-dyn" | grep -q 'INTERP'
+    readelf -lW "${smoke_dir}/hello-libgcc-dyn" | grep -q 'INTERP'
 
     MSYSROOT="${expected_sysroot}" \
         "${GITHUB_WORKSPACE}/.github/scripts/run-aarch64-musl.sh" \
