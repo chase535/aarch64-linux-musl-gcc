@@ -23,14 +23,14 @@
 
 ### 如需动态链接
 
-传递 `-shared` 时，wrapper 不会注入 `-static`：
+传递 `-shared` 或 `-Wl,-Bdynamic` 时，wrapper 不会注入 `-static`：
 
 ```bash
 # 动态链接的共享库
 aarch64-linux-musl-gcc -shared -fPIC foo.c -o libfoo.so
 
-# 动态链接的可执行文件：直接调用 .real 二进制绕过 wrapper
-aarch64-linux-musl-gcc.real hello.c -o hello
+# 动态链接的可执行文件
+aarch64-linux-musl-gcc -Wl,-Bdynamic hello.c -o hello
 ```
 
 动态链接的产物**只能在以下环境中运行**：

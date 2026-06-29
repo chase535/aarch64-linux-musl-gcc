@@ -534,7 +534,7 @@ SELF="\$(dirname "\$0")/${TARGET}-${name}.real"
 add_static=1
 for arg in "\$@"; do
     case "\$arg" in
-        -shared|-Bdynamic) add_static=0; break ;;
+        -shared|-Wl,-Bdynamic) add_static=0; break ;;
     esac
 done
 if [ "\$add_static" -eq 1 ]; then
@@ -616,8 +616,6 @@ verify_relocatable_toolchain() {
 
     cc="${relocated_dir}/bin/${TARGET}-gcc"
     cxx="${relocated_dir}/bin/${TARGET}-g++"
-    cc_real="${relocated_dir}/bin/${TARGET}-gcc.real"
-    cxx_real="${relocated_dir}/bin/${TARGET}-g++.real"
     expected_sysroot="$(realpath "${relocated_dir}/${TARGET}/sysroot")"
     actual_sysroot="$(realpath "$("${cc}" -print-sysroot)")"
     if [[ "${actual_sysroot}" != "${expected_sysroot}" ]]; then
@@ -635,12 +633,12 @@ verify_relocatable_toolchain() {
     printf 'int main(void) { volatile __int128 a = ((__int128) 1 << 100) + 7; volatile __int128 b = 11; return a / b == 0; }\n' \
         > "${smoke_dir}/libgcc.c"
 
-    # Dynamically linked (use .real to bypass wrapper):
+    # Dynamically linked (-Wl,-Bdynamic bypasses wrapper):
     # verify binary format, dynamic linker, and execution
-    "${cc_real}" "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
-    "${cxx_real}" "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
-    "${cc_real}" -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
-    "${cc_real}" "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
+    "${cc}" -Wl,-Bdynamic "${smoke_dir}/hello.c" -o "${smoke_dir}/hello-c-dyn"
+    "${cxx}" -Wl,-Bdynamic "${smoke_dir}/hello.cpp" -o "${smoke_dir}/hello-cpp-dyn"
+    "${cc}" -Wl,-Bdynamic -fopenmp "${smoke_dir}/openmp.c" -o "${smoke_dir}/hello-openmp-dyn"
+    "${cc}" -Wl,-Bdynamic "${smoke_dir}/libgcc.c" -o "${smoke_dir}/hello-libgcc-dyn"
 
     file "${smoke_dir}/hello-c-dyn" | grep -q 'ARM aarch64'
     file "${smoke_dir}/hello-cpp-dyn" | grep -q 'ARM aarch64'
