@@ -533,8 +533,8 @@ patch_gcc_for_static_default() {
     sed -n '/driver_self_specs\[/,/\};/p' "${gcc_cc}"
     echo "--- end ---"
 
-    # Verify the patch actually took effect.
-    if ! grep -q '"-static"' "${gcc_cc}"; then
+    # Verify the patch actually took effect within the array.
+    if ! sed -n '/driver_self_specs\[/,/\};/p' "${gcc_cc}" | grep -q '"-static"'; then
         echo "ERROR: Failed to patch gcc.cc — driver_self_specs format may have changed" >&2
         echo "Check ${gcc_cc} and update the patch logic" >&2
         exit 1
