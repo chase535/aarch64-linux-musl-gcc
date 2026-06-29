@@ -518,9 +518,29 @@ patch_gcc_for_static_default() {
     # to static linking.  User-supplied -shared / -Bdynamic override it
     # because GCC processes options left-to-right and self-specs are
     # processed before user arguments.
+    # Step 1: Add trailing comma to the last entry in the array.
+    # Find the line before "};" inside driver_self_specs and append ",".
     gawk '
         /driver_self_specs\[/ { in_specs = 1 }
-        in_specs && /^[[:space:]]*\};/ {
+        in_specs && /^};/ {
+            in_specs = 0
+            need_comma = 1
+        }
+        {
+            if (need_comma && last !~ /,$/) {
+                sub(/"$/, "\",", last)
+            }
+            if (NR > 1) print last
+            last = $0
+            need_comma = 0
+        }
+        END { print }
+    ' "${gcc_cc}" > "${gcc_cc}.tmp" && mv "${gcc_cc}.tmp" "${gcc_cc}"
+
+    # Step 2: Insert "-static" before the closing brace.
+    gawk '
+        /driver_self_specs\[/ { in_specs = 1 }
+        in_specs && /^};/ {
             print "  \"-static\","
             in_specs = 0
             patched = 1
