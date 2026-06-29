@@ -507,7 +507,7 @@ build_target_libraries() {
 }
 
 patch_gcc_for_static_default() {
-    local gcc_cc="${SOURCE_DIR}/gcc/gcc.cc"
+    local gcc_cc="${SOURCE_DIR}/gcc/gcc/gcc.cc"
 
     if [[ ! -f "${gcc_cc}" ]]; then
         echo "ERROR: gcc.cc not found at ${gcc_cc}" >&2
