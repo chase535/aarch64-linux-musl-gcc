@@ -1,5 +1,7 @@
 FROM alpine:3.24
 
+ARG TARGETPLATFORM
+
 RUN apk add --no-cache \
         autoconf \
         automake \
@@ -26,7 +28,6 @@ RUN apk add --no-cache \
         perl \
         pkgconf \
         python3 \
-        qemu-aarch64 \
         rsync \
         tar \
         tcl \
@@ -35,4 +36,5 @@ RUN apk add --no-cache \
         zlib-dev \
         zlib-static \
         zstd-dev \
-        zstd-static
+        zstd-static \
+    && if [ "$(uname -m)" != "aarch64" ]; then apk add --no-cache qemu-aarch64; fi
