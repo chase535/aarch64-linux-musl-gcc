@@ -57,6 +57,9 @@ defaults:
 jobs:
   prepare-build-container:
     runs-on: ubuntu-latest
+    outputs:
+      BUILD_IMAGE_CACHE_KEY: ${{ steps.cache-key.outputs.BUILD_IMAGE_CACHE_KEY }}
+      BUILD_ARM64_IMAGE_CACHE_KEY: ${{ steps.cache-key.outputs.BUILD_ARM64_IMAGE_CACHE_KEY }}
     strategy:
       matrix:
         include:
@@ -70,9 +73,6 @@ jobs:
             cache-path: .cache/alpine-arm64-test-image.tar
             cache-version: alpine-3.24-arm64-test-image-v1
             output-key: BUILD_ARM64_IMAGE_CACHE_KEY
-    outputs:
-      BUILD_IMAGE_CACHE_KEY: ${{ steps.cache-key.outputs.BUILD_IMAGE_CACHE_KEY }}
-      BUILD_ARM64_IMAGE_CACHE_KEY: ${{ steps.cache-key.outputs.BUILD_ARM64_IMAGE_CACHE_KEY }}
     steps:
       - name: Checkout workflow files
         uses: actions/checkout@v7
