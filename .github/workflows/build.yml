@@ -44,8 +44,6 @@ env:
   ALPINE_ARM64_IMAGE: "aarch64-linux-musl-gcc-test:alpine-3.24-arm64"
   BUILD_IMAGE_CACHE_PATH: "${{ github.workspace }}/.cache/alpine-build-image.tar"
   BUILD_ARM64_IMAGE_CACHE_PATH: "${{ github.workspace }}/.cache/alpine-arm64-test-image.tar"
-  BUILD_IMAGE_CACHE_VERSION: "alpine-3.24-build-image-v1"
-  BUILD_ARM64_IMAGE_CACHE_VERSION: "alpine-3.24-arm64-test-image-v1"
   CACHE_VERSION: "alpine-3.24-static-musl-v6-no-check"
   GMP_REPOSITORY: "https://github.com/gmp-mirror/gmp.git"
   ISL_REPOSITORY: "https://repo.or.cz/isl.git"
@@ -59,86 +57,62 @@ defaults:
 jobs:
   prepare-build-container:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: linux/amd64
+            image: aarch64-linux-musl-gcc-build:alpine-3.24
+            cache-path: .cache/alpine-build-image.tar
+            cache-version: alpine-3.24-build-image-v1
+            output-key: BUILD_IMAGE_CACHE_KEY
+          - platform: linux/arm64
+            image: aarch64-linux-musl-gcc-test:alpine-3.24-arm64
+            cache-path: .cache/alpine-arm64-test-image.tar
+            cache-version: alpine-3.24-arm64-test-image-v1
+            output-key: BUILD_ARM64_IMAGE_CACHE_KEY
     outputs:
-      BUILD_IMAGE_CACHE_KEY: ${{ steps.build-image-cache-key.outputs.value }}
-      BUILD_ARM64_IMAGE_CACHE_KEY: ${{ steps.build-arm64-image-cache-key.outputs.value }}
+      BUILD_IMAGE_CACHE_KEY: ${{ steps.cache-key.outputs.BUILD_IMAGE_CACHE_KEY }}
+      BUILD_ARM64_IMAGE_CACHE_KEY: ${{ steps.cache-key.outputs.BUILD_ARM64_IMAGE_CACHE_KEY }}
     steps:
       - name: Checkout workflow files
         uses: actions/checkout@v7
         with:
           persist-credentials: false
-      - name: Resolve Alpine build image cache key
-        id: build-image-cache-key
+      - name: Resolve cache key
+        id: cache-key
         run: |
           base_image=$(awk 'toupper($1) == "FROM" { print $2; exit }' .github/docker/Dockerfile)
           if [[ -z "${base_image}" ]]; then
             echo "Unable to determine the base image from Dockerfile" >&2
             exit 1
           fi
-          docker pull "${base_image}"
+          docker pull --platform ${{ matrix.platform }} "${base_image}"
           base_image_id=$(docker image inspect --format '{{.Id}}' "${base_image}")
           base_image_id=${base_image_id#sha256:}
           dockerfile_sha=$(sha256sum .github/docker/Dockerfile | awk '{print $1}')
-          echo "Base image: ${base_image}"
-          echo "Base image ID: ${base_image_id}"
-          echo "value=${RUNNER_OS}-${BUILD_IMAGE_CACHE_VERSION}-${dockerfile_sha}-${base_image_id}" >> "${GITHUB_OUTPUT}"
-      - name: Cache Alpine build image
-        id: build-image-cache
+          echo "${{ matrix.output-key }}=${RUNNER_OS}-${{ matrix.cache-version }}-${dockerfile_sha}-${base_image_id}" >> "${GITHUB_OUTPUT}"
+      - name: Cache image
+        id: cache
         uses: actions/cache@v6
         with:
-          path: ${{ env.BUILD_IMAGE_CACHE_PATH }}
-          key: ${{ steps.build-image-cache-key.outputs.value }}
-      - name: Build Alpine image
-        if: ${{ steps.build-image-cache.outputs.cache-hit != 'true' }}
+          path: ${{ matrix.cache-path }}
+          key: ${{ steps.cache-key.outputs[matrix.output-key] }}
+      - name: Build image
+        if: ${{ steps.cache.outputs.cache-hit != 'true' }}
         run: |
           docker build \
             --pull \
-            --tag "${ALPINE_IMAGE}" \
+            --platform ${{ matrix.platform }} \
+            --tag "${{ matrix.image }}" \
             .github/docker
-          mkdir -p "$(dirname "${BUILD_IMAGE_CACHE_PATH}")"
+          mkdir -p "$(dirname "${{ matrix.cache-path }}")"
           docker save \
-            --output "${BUILD_IMAGE_CACHE_PATH}" \
-            "${ALPINE_IMAGE}"
-      - name: Verify Alpine build image
+            --output "${{ matrix.cache-path }}" \
+            "${{ matrix.image }}"
+      - name: Verify image
         run: |
-          docker load --input "${BUILD_IMAGE_CACHE_PATH}"
-          docker image inspect "${ALPINE_IMAGE}" >/dev/null
-      - name: Resolve Alpine arm64 test image cache key
-        id: build-arm64-image-cache-key
-        run: |
-          base_image=$(awk 'toupper($1) == "FROM" { print $2; exit }' .github/docker/Dockerfile.arm64-test)
-          if [[ -z "${base_image}" ]]; then
-            echo "Unable to determine the base image from Dockerfile.arm64-test" >&2
-            exit 1
-          fi
-          docker pull --platform linux/arm64 "${base_image}"
-          base_image_id=$(docker image inspect --format '{{.Id}}' "${base_image}")
-          base_image_id=${base_image_id#sha256:}
-          dockerfile_sha=$(sha256sum .github/docker/Dockerfile.arm64-test | awk '{print $1}')
-          echo "value=${RUNNER_OS}-${BUILD_ARM64_IMAGE_CACHE_VERSION}-${dockerfile_sha}-${base_image_id}" >> "${GITHUB_OUTPUT}"
-      - name: Cache Alpine arm64 test image
-        id: build-arm64-image-cache
-        uses: actions/cache@v6
-        with:
-          path: ${{ env.BUILD_ARM64_IMAGE_CACHE_PATH }}
-          key: ${{ steps.build-arm64-image-cache-key.outputs.value }}
-      - name: Build Alpine arm64 test image
-        if: ${{ steps.build-arm64-image-cache.outputs.cache-hit != 'true' }}
-        run: |
-          docker build \
-            --pull \
-            --platform linux/arm64 \
-            --tag "${ALPINE_ARM64_IMAGE}" \
-            -f .github/docker/Dockerfile.arm64-test \
-            .github/docker
-          mkdir -p "$(dirname "${BUILD_ARM64_IMAGE_CACHE_PATH}")"
-          docker save \
-            --output "${BUILD_ARM64_IMAGE_CACHE_PATH}" \
-            "${ALPINE_ARM64_IMAGE}"
-      - name: Verify Alpine arm64 test image
-        run: |
-          docker load --input "${BUILD_ARM64_IMAGE_CACHE_PATH}"
-          docker image inspect "${ALPINE_ARM64_IMAGE}" >/dev/null
+          docker load --input "${{ matrix.cache-path }}"
+          docker image inspect "${{ matrix.image }}" >/dev/null
 
   delete-old-workflow-runs:
     runs-on: ubuntu-latest
