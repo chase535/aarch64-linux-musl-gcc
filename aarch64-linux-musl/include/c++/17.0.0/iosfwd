@@ -1,0 +1,78 @@
+// <iosfwd> Forward declarations -*- C++ -*-
+
+// Copyright (C) 1997-2026 Free Software Foundation, Inc.
+//
+// This file is part of the GNU ISO C++ Library.  This library is free
+// software; you can redistribute it and/or modify it under the
+// terms of the GNU General Public License as published by the
+// Free Software Foundation; either version 3, or (at your option)
+// any later version.
+
+// This library is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+
+// Under Section 7 of GPL version 3, you are granted additional
+// permissions described in the GCC Runtime Library Exception, version
+// 3.1, as published by the Free Software Foundation.
+
+// You should have received a copy of the GNU General Public License and
+// a copy of the GCC Runtime Library Exception along with this program;
+// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+// <http://www.gnu.org/licenses/>.
+
+/** @file include/iosfwd
+ *  This is a Standard C++ Library header.
+ */
+
+//
+// ISO C++ 14882: 27.2  Forward declarations
+//
+
+#ifndef _GLIBCXX_IOSFWD
+#define _GLIBCXX_IOSFWD 1
+
+#ifdef _GLIBCXX_SYSHDR
+#pragma GCC system_header
+#endif
+
+#include <bits/requires_hosted.h> // iostreams
+
+#define __glibcxx_want_spanstream
+#define __glibcxx_want_syncbuf
+#include <bits/version.h>
+
+  /**
+   *  @defgroup io I/O
+   *
+   *  Nearly all of the I/O classes are parameterized on the type of
+   *  characters they read and write.  (The major exception is `ios_base` at
+   *  the top of the hierarchy.)  This is a change from pre-Standard
+   *  streams, which were not templates.
+   *
+   *  For ease of use and compatibility, all of the `basic_*` I/O-related
+   *  classes are given typedef names for both of the builtin character
+   *  widths (wide and narrow).  The typedefs are the same as the
+   *  pre-Standard names, for example:
+   *
+   *  ```
+   *     typedef basic_ifstream<char>  ifstream;
+   *  ```
+   *
+   *  Because properly forward-declaring these classes can be difficult, you
+   *  should not do it yourself.  Instead, include the `<iosfwd>`
+   *  header, which contains only declarations of all the I/O classes as
+   *  well as the typedefs.  Trying to forward-declare the typedefs
+   *  themselves (e.g., `class ostream;`) is not valid ISO C++.
+   *
+   *  For more specific declarations, see
+   *  https://gcc.gnu.org/onlinedocs/libstdc++/manual/io.html#std.io.objects
+   */
+
+#include <bits/iosfwd_file.h>
+#include <bits/iosfwd_string.h>
+#include <bits/iosfwd_sync.h>
+#include <bits/iosfwd_span.h>
+
+#endif /* _GLIBCXX_IOSFWD */
