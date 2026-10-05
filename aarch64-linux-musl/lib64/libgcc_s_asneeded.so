@@ -1,0 +1,3 @@
+/* GNU ld script
+   Add DT_NEEDED entry for libgcc_s.so only if needed.  */
+INPUT ( AS_NEEDED ( -lgcc_s ) )
